@@ -29,7 +29,7 @@ El QR abre WhatsApp con un mensaje prescrito; si el mensaje contiene la frase de
 Pasos: saludo → nombre → empresa → aviso de Habeas Data + correo → etapa → hectáreas → municipio (→ departamento) → fichas → cierre.
 Cada respuesta se guarda en la tabla `leads` (una fila por número). Cuando termina, los mensajes libres los responde la IA.
 
-- **Salida a asesor:** dos respuestas inesperadas seguidas, o si pide un asesor → `requiere_asesor = true` en `leads`.
+- **Salida a asesor:** dos respuestas inesperadas seguidas, o si pide un asesor → `requiere_asesor = true` en `leads` y aviso por WhatsApp al asesor.
 - **Eliminar datos:** si el cliente escribe "borrar mis datos", se borran su lead y su historial. Útil también para volver a probar el flujo desde cero.
 - **Volver a escanear el QR** reinicia el flujo desde el saludo.
 
@@ -70,4 +70,4 @@ curl -X POST "https://graph.facebook.com/v23.0/$WHATSAPP_BUSINESS_ACCOUNT_ID/sub
 ## Limitaciones actuales
 - Solo texto: audios, imágenes y documentos reciben un mensaje pidiendo escribir.
 - Si el cliente envía varios mensajes seguidos, cada uno recibe su propia respuesta.
-- El traspaso a asesor solo marca el lead en Supabase (`requiere_asesor`); nadie recibe aviso automático todavía.
+- El aviso al asesor usa la plantilla `aviso_asesor_lead` (aprobada por Meta); el número está en `AVISO_ASESOR` de `src/config/flujo.ts`. Cada aviso es una conversación de utilidad que Meta cobra.

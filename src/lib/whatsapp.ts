@@ -103,6 +103,21 @@ export async function sendDocument(to: string, link: string, filename: string): 
   });
 }
 
+/** Plantilla aprobada por Meta, con variables de texto en el cuerpo ({{1}}, {{2}}…). */
+export async function sendTemplate(to: string, name: string, language: string, params: string[]): Promise<void> {
+  await graphPost({
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "template",
+    template: {
+      name,
+      language: { code: language },
+      components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }],
+    },
+  });
+}
+
 /** Parte textos largos por párrafos/líneas para no pasar el límite de WhatsApp. */
 function splitText(text: string): string[] {
   const chunks: string[] = [];

@@ -1,4 +1,4 @@
-import { ETAPAS, FICHAS_NOMBRE_ARCHIVO, HECTAREAS, ORIGENES, TEXTOS } from "@/config/flujo";
+import { ETAPAS, FICHAS_NOMBRE_ARCHIVO, HECTAREAS, NOMBRE_PASO, ORIGENES, TEXTOS } from "@/config/flujo";
 import { buscarDepartamento, buscarMunicipio, municipioEnDepartamento, normalize } from "./municipios";
 import { emptyLead, type Lead, type LeadPatch } from "./store";
 import type { Button, ListRow } from "./whatsapp";
@@ -26,6 +26,8 @@ export interface FlowDeps {
   fichasUrl: string | undefined;
   politicaUrl: string;
   enviarCorreo(to: string, nombre: string | null, fichasUrl: string): Promise<boolean>;
+  /** Avisa a un asesor que este cliente necesita atención humana. No debe lanzar errores. */
+  avisarAsesor(lead: Lead, motivo: string): Promise<void>;
   now(): string;
   /** Nombre del perfil de WhatsApp, si llegó en el webhook. */
   nombrePerfil?: string;
@@ -101,7 +103,7 @@ export async function procesarFlujo(actual: Lead | null, waId: string, entrada: 
   const paso = lead.paso as Paso;
 
   if (paso !== "asesor" && RE.pideAsesor.test(n)) {
-    await pasarAAsesor(guardar, deps, "pidió hablar con un asesor");
+    await pasarAAsesor(lead, guardar, deps, "Pidió hablar con un asesor");
     return true;
   }
 
@@ -113,7 +115,7 @@ export async function procesarFlujo(actual: Lead | null, waId: string, entrada: 
 
   const inesperada = async () => {
     if (lead.intentos_fallidos >= 1) {
-      await pasarAAsesor(guardar, deps, `respuesta inesperada en el paso "${paso}"`);
+      await pasarAAsesor(lead, guardar, deps, `El bot no entendió sus respuestas en ${NOMBRE_PASO[paso] ?? paso}`);
       return true;
     }
     await guardar({ intentos_fallidos: lead.intentos_fallidos + 1 });
@@ -280,7 +282,9 @@ async function enviarFichas(lead: Lead, guardar: (patch: LeadPatch) => Promise<v
   if (!url) {
     console.error("[flow] Falta FICHAS_URL: no se pudieron enviar las fichas.");
     await deps.canal.text(TEXTOS.fichasNoDisponibles);
-    await guardar({ requiere_asesor: true, motivo_asesor: lead.motivo_asesor ?? "enviar fichas técnicas (FICHAS_URL sin configurar)" });
+    const motivo = "Pidió las fichas técnicas y el bot no las tiene configuradas";
+    await guardar({ requiere_asesor: true, motivo_asesor: motivo });
+    await deps.avisarAsesor(lead, motivo);
     return false;
   }
   await deps.canal.text(TEXTOS.aquiVan);
@@ -293,9 +297,10 @@ async function enviarFichas(lead: Lead, guardar: (patch: LeadPatch) => Promise<v
   return true;
 }
 
-async function pasarAAsesor(guardar: (patch: LeadPatch) => Promise<void>, deps: FlowDeps, motivo: string) {
+async function pasarAAsesor(lead: Lead, guardar: (patch: LeadPatch) => Promise<void>, deps: FlowDeps, motivo: string) {
   await guardar({ paso: "asesor", intentos_fallidos: 0, requiere_asesor: true, motivo_asesor: motivo });
   await deps.canal.text(TEXTOS.asesor);
+  await deps.avisarAsesor({ ...lead, motivo_asesor: motivo }, motivo);
 }
 
 function esOpcion(entrada: Entrada, id: string): boolean {

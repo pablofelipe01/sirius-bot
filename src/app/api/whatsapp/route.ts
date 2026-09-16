@@ -1,10 +1,11 @@
 import { after } from "next/server";
 import { ERROR_REPLY, HISTORY_LIMIT, UNSUPPORTED_MESSAGE_REPLY } from "@/config/bot";
+import { AVISO_ASESOR } from "@/config/flujo";
 import { generateReply } from "@/lib/ai";
 import { enviarFichasPorCorreo } from "@/lib/email";
 import { env } from "@/lib/env";
 import { procesarFlujo, type Canal, type Entrada } from "@/lib/flow";
-import { getStore, type ConversationStore } from "@/lib/store";
+import { getStore, type ConversationStore, type Lead } from "@/lib/store";
 import {
   extractInboundMessages,
   isValidSignature,
@@ -12,6 +13,7 @@ import {
   sendButtons,
   sendDocument,
   sendList,
+  sendTemplate,
   sendText,
   type IncomingMessage,
   type InboundEvent,
@@ -78,6 +80,7 @@ async function handleMessage({ message, contactName }: InboundEvent) {
     fichasUrl: env.fichasUrl(),
     politicaUrl: env.politicaDatosUrl(),
     enviarCorreo: enviarFichasPorCorreo,
+    avisarAsesor,
     now: () => new Date().toISOString(),
     nombrePerfil: contactName,
   });
@@ -100,6 +103,23 @@ async function handleMessage({ message, contactName }: InboundEvent) {
   const finalReply = reply ?? ERROR_REPLY;
   await sendText(waId, finalReply);
   if (reply) await store.saveReply(waId, reply);
+}
+
+/** Manda al asesor la plantilla con los datos del cliente. Si falla, solo queda en el log (el lead ya está marcado). */
+async function avisarAsesor(lead: Lead, motivo: string): Promise<void> {
+  // Las variables de plantilla no pueden ir vacías ni tener saltos de línea.
+  const limpio = (value: string | null | undefined, fallback: string) =>
+    value?.replace(/\s+/g, " ").trim().slice(0, 200) || fallback;
+  try {
+    await sendTemplate(AVISO_ASESOR.whatsapp, AVISO_ASESOR.plantilla, AVISO_ASESOR.idioma, [
+      limpio(lead.nombre ?? lead.nombre_perfil, "Sin nombre"),
+      `https://wa.me/${lead.wa_id}`,
+      limpio(lead.empresa, "No la dio"),
+      limpio(motivo, "Necesita un asesor"),
+    ]);
+  } catch (err) {
+    console.error(`[asesor] No se pudo avisar al asesor sobre ${lead.wa_id}:`, err);
+  }
 }
 
 function toEntrada(message: IncomingMessage): Entrada {

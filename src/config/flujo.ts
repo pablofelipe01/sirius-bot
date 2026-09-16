@@ -75,5 +75,30 @@ export const HECTAREAS = [
   { id: "mas_300", title: "Más de 300 ha" },
 ] as const;
 
+/**
+ * Aviso al asesor cuando un cliente necesita atención humana.
+ * Usa una plantilla aprobada por Meta porque el asesor normalmente no le ha escrito al bot en las últimas 24 h.
+ * Variables de la plantilla: {{1}} nombre, {{2}} enlace wa.me del cliente, {{3}} empresa o finca, {{4}} motivo.
+ */
+export const AVISO_ASESOR = {
+  whatsapp: "573118882058", // +57 311 8882058, sin + ni espacios
+  plantilla: "aviso_asesor_lead",
+  idioma: "es",
+};
+
+/** Cómo aparece cada pregunta en el motivo del aviso al asesor. */
+export const NOMBRE_PASO: Record<string, string> = {
+  inicio: "el saludo",
+  nombre: "su nombre",
+  empresa: "la empresa o finca",
+  correo: "el correo",
+  correo_reintento: "el correo",
+  etapa: "la etapa del cultivo",
+  hectareas: "las hectáreas",
+  municipio: "el municipio",
+  departamento: "el departamento",
+  fichas: "el envío de fichas",
+};
+
 /** Nombre con el que llega el PDF al cliente. */
 export const FICHAS_NOMBRE_ARCHIVO = "Fichas técnicas Sirius Regenerative.pdf";
