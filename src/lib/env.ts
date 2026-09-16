@@ -12,8 +12,8 @@ export const env = {
   whatsappApiVersion: () => process.env.WHATSAPP_API_VERSION || "v23.0",
   supabaseUrl: () => process.env.SUPABASE_URL,
   supabaseServiceRoleKey: () => process.env.SUPABASE_SERVICE_ROLE_KEY,
-  /** URL pública del PDF con las fichas técnicas (o de una carpeta de Drive si pesa más de 100 MB). */
-  fichasUrl: () => process.env.FICHAS_URL,
+  /** URL pública del PDF con las fichas técnicas. Por defecto, el PDF de /public en este mismo sitio. */
+  fichasUrl: () => process.env.FICHAS_URL || `${siteUrl()}/fichas-tecnicas-sirius-regenerative.pdf`,
   /** Página de la política de tratamiento de datos. Por defecto, /privacidad de este mismo sitio. */
   politicaDatosUrl: () => process.env.POLITICA_DATOS_URL || `${siteUrl()}/privacidad`,
   /** Envío de las fichas por correo con Resend. Si falta alguna, no se envía correo. */

@@ -5,13 +5,14 @@ export const metadata: Metadata = {
   description: "Cómo Sirius Regenerative trata los datos personales que recibe por WhatsApp (Ley 1581 de 2012).",
 };
 
-// Borrador base. Revísalo con asesoría legal y completa razón social, NIT, dirección y correo de contacto.
+// Borrador base. Revísalo con asesoría legal.
 export default function Privacidad() {
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: "48px 20px", lineHeight: 1.6, fontFamily: "system-ui, sans-serif" }}>
       <h1>Política de tratamiento de datos personales</h1>
       <p>
-        <strong>Sirius Regenerative</strong>, con domicilio en Barranca de Upía (Meta), Colombia, es responsable del
+        <strong>Sirius Regenerative Solutions S.A.S. ZOMAC</strong>, NIT 901.377.064-8, con domicilio en el Km 7 vía
+        Cabuyaro, Barranca de Upía (Meta), Colombia, es responsable del
         tratamiento de los datos personales que recibe a través de su canal de WhatsApp, en cumplimiento de la Ley 1581 de
         2012 y el Decreto 1377 de 2013.
       </p>
@@ -39,7 +40,8 @@ export default function Privacidad() {
 
       <h2>Cómo ejercerlos</h2>
       <p>
-        Escríbenos al mismo chat de WhatsApp por el que nos contactaste. Si escribes <em>“borrar mis datos”</em>, los
+        Escríbenos al mismo chat de WhatsApp por el que nos contactaste o al correo{" "}
+        <a href="mailto:direccion.comercial@siriusregenerative.com">direccion.comercial@siriusregenerative.com</a>. Si escribes <em>“borrar mis datos”</em>, los
         eliminamos de inmediato. Las consultas se responden en máximo 10 días hábiles y los reclamos en máximo 15 días
         hábiles.
       </p>

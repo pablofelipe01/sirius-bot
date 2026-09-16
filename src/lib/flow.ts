@@ -63,6 +63,7 @@ const RE = {
   si: /^(si+|dale|listo|ok|okay|claro|de una|bueno|vamos|hagale|por favor|si (claro|gracias|por favor|empecemos|envi[ae](me)?las))$/,
   no: /^(no|no gracias|no por ahora|ahora no|despues|luego|mas tarde)$/,
   soloFichas: /\b(fichas?|pdf)\b/,
+  pideFichas: /^(las |la )?(fichas?|pdf)( tecnicas?)?$|\b(envia|enviar|envie|manda|mandar|pasa|pasar|comparte|compartir|quiero|necesito)\w*\b.*\b(fichas?|pdf)\b/,
   sinCorreo: /^(no|no gracias|prefiero no\b.*|sin correo|no tengo\b.*|paso)$/,
   correo: /[^\s@<>()]+@[^\s@<>()]+\.[a-z]{2,}/i,
 };
@@ -129,7 +130,8 @@ export async function procesarFlujo(actual: Lead | null, waId: string, entrada: 
     case "completo":
     case "asesor": {
       // Botones viejos de fichas siguen funcionando; lo demás lo responde la IA.
-      if (entrada.tipo === "opcion" && (entrada.id === ID.fichasSi || entrada.id === ID.soloFichas)) {
+      const pideFichas = entrada.tipo === "opcion" ? entrada.id === ID.fichasSi || entrada.id === ID.soloFichas : RE.pideFichas.test(n);
+      if (pideFichas) {
         await enviarFichas(lead, guardar, deps);
         return true;
       }
