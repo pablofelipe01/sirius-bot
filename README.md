@@ -35,6 +35,13 @@ Cada respuesta se guarda en la tabla `leads` (una fila por número). Cuando term
 
 Link del QR: `https://wa.me/573224183251?text=Hola%2C%20vengo%20de%20la%20Conferencia%20de%20Palma%202026%20y%20quiero%20informaci%C3%B3n%20sobre%20biochar%20y%20biol%C3%B3gicos.`
 
+## Panel de asesores (`/asesores`)
+
+Lista de clientes captados por el bot, con pestañas *Por atender* (pidieron asesor, completaron el cuestionario o solo pidieron fichas), *En curso*, *Atendidos* y *Todos*; búsqueda; botón de WhatsApp con saludo prescrito; detalle con datos, notas y la conversación con el bot; y descarga en CSV para Excel.
+
+- Entrada con nombre + contraseña compartida (`ASESORES_PASSWORD`). Cambiar la contraseña cierra todas las sesiones.
+- "Marcar como atendido" guarda `atendido_en` y `atendido_por` en `leads`.
+
 ## Configuración
 
 ### 1. Variables de entorno

@@ -19,6 +19,8 @@ export const env = {
   /** Envío de las fichas por correo con Resend. Si falta alguna, no se envía correo. */
   resendApiKey: () => process.env.RESEND_API_KEY,
   emailFrom: () => process.env.EMAIL_FROM,
+  /** Contraseña compartida del panel de asesores (/asesores). Si falta, el panel no deja entrar. */
+  asesoresPassword: () => process.env.ASESORES_PASSWORD,
 };
 
 function siteUrl(): string {

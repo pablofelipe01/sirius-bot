@@ -30,6 +30,9 @@ export interface Lead {
   requiere_asesor: boolean;
   motivo_asesor: string | null;
   completado_en: string | null;
+  atendido_en: string | null;
+  atendido_por: string | null;
+  notas: string | null;
 }
 
 export type LeadPatch = Partial<Omit<Lead, "wa_id">>;
@@ -56,6 +59,9 @@ export function emptyLead(waId: string): Lead {
     requiere_asesor: false,
     motivo_asesor: null,
     completado_en: null,
+    atendido_en: null,
+    atendido_por: null,
+    notas: null,
   };
 }
 
@@ -166,13 +172,22 @@ class MemoryStore implements ConversationStore {
 }
 
 let store: ConversationStore | undefined;
+let admin: SupabaseClient | null | undefined;
+
+/** Cliente de Supabase con la service role key (omite RLS). Solo para código de servidor. null si no hay credenciales. */
+export function getSupabaseAdmin(): SupabaseClient | null {
+  if (admin !== undefined) return admin;
+  const url = env.supabaseUrl();
+  const key = env.supabaseServiceRoleKey();
+  admin = url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
+  return admin;
+}
 
 export function getStore(): ConversationStore {
   if (store) return store;
-  const url = env.supabaseUrl();
-  const key = env.supabaseServiceRoleKey();
-  if (url && key) {
-    store = new SupabaseStore(createClient(url, key, { auth: { persistSession: false } }));
+  const db = getSupabaseAdmin();
+  if (db) {
+    store = new SupabaseStore(db);
   } else {
     console.warn("[store] Sin SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY: usando memoria (solo para desarrollo).");
     store = new MemoryStore();
