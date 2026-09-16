@@ -51,6 +51,58 @@ export async function sendText(to: string, text: string): Promise<void> {
   }
 }
 
+export interface Button {
+  id: string;
+  title: string; // máx. 20 caracteres
+}
+
+/** Mensaje con hasta 3 botones de respuesta rápida. */
+export async function sendButtons(to: string, body: string, buttons: Button[]): Promise<void> {
+  await graphPost({
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: body },
+      action: { buttons: buttons.map((reply) => ({ type: "reply", reply })) },
+    },
+  });
+}
+
+export interface ListRow {
+  id: string;
+  title: string; // máx. 24 caracteres
+  description?: string; // máx. 72 caracteres
+}
+
+/** Lista desplegable (hasta 10 opciones). `buttonText` es el texto del botón que la abre (máx. 20). */
+export async function sendList(to: string, body: string, buttonText: string, rows: ListRow[]): Promise<void> {
+  await graphPost({
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: { text: body },
+      action: { button: buttonText, sections: [{ title: "Opciones", rows }] },
+    },
+  });
+}
+
+/** Documento por URL pública (WhatsApp lo descarga; máx. 100 MB). */
+export async function sendDocument(to: string, link: string, filename: string): Promise<void> {
+  await graphPost({
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "document",
+    document: { link, filename },
+  });
+}
+
 /** Parte textos largos por párrafos/líneas para no pasar el límite de WhatsApp. */
 function splitText(text: string): string[] {
   const chunks: string[] = [];
@@ -74,6 +126,11 @@ export interface IncomingMessage {
   type: string;
   timestamp: string;
   text?: { body: string };
+  interactive?: {
+    type: "button_reply" | "list_reply";
+    button_reply?: { id: string; title: string };
+    list_reply?: { id: string; title: string };
+  };
 }
 
 interface WebhookPayload {

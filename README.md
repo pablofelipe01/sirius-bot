@@ -10,12 +10,30 @@ Next.js (App Router) + WhatsApp Cloud API + Claude (`claude-opus-5`).
 
 | Archivo | Qué contiene |
 |---|---|
+| `src/config/flujo.ts` | **Textos, botones y opciones del flujo guiado (QR).** |
+| `src/lib/flow.ts` | Pasos del flujo guiado y validaciones |
+| `src/lib/municipios.ts` + `src/data/municipios.ts` | Validación del municipio contra el listado del DANE |
+| `src/lib/email.ts` | Envío opcional de las fichas por correo (Resend) |
+| `src/app/privacidad/page.tsx` | Política de tratamiento de datos (Ley 1581) — borrador, revisar |
+| `docs/qr-conferencia-palma-2026.png` | QR de la Conferencia de Palma 2026 |
 | `src/config/bot.ts` | **Personalidad, info del negocio y preguntas frecuentes. Edita esto primero.** |
 | `src/app/api/whatsapp/route.ts` | Webhook (verificación GET + mensajes POST) |
 | `src/lib/whatsapp.ts` | Firma, envío de mensajes y parseo del payload |
 | `src/lib/ai.ts` | Llamada a Claude (con caché del prompt y modelo de respaldo si hay rechazo) |
 | `src/lib/store.ts` | Historial: Supabase, o memoria si no hay credenciales |
 | `supabase/migrations/…_wa_mensajes.sql` | Tabla del historial |
+
+## Flujo guiado (QR)
+
+El QR abre WhatsApp con un mensaje prescrito; si el mensaje contiene la frase de `ORIGENES` (`src/config/flujo.ts`) se guarda el origen del lead.
+Pasos: saludo → nombre → empresa → aviso de Habeas Data + correo → etapa → hectáreas → municipio (→ departamento) → fichas → cierre.
+Cada respuesta se guarda en la tabla `leads` (una fila por número). Cuando termina, los mensajes libres los responde la IA.
+
+- **Salida a asesor:** dos respuestas inesperadas seguidas, o si pide un asesor → `requiere_asesor = true` en `leads`.
+- **Eliminar datos:** si el cliente escribe "borrar mis datos", se borran su lead y su historial. Útil también para volver a probar el flujo desde cero.
+- **Volver a escanear el QR** reinicia el flujo desde el saludo.
+
+Link del QR: `https://wa.me/573224183251?text=Hola%2C%20vengo%20de%20la%20Conferencia%20de%20Palma%202026%20y%20quiero%20informaci%C3%B3n%20sobre%20biochar%20y%20biol%C3%B3gicos.`
 
 ## Configuración
 
@@ -52,4 +70,4 @@ curl -X POST "https://graph.facebook.com/v23.0/$WHATSAPP_BUSINESS_ACCOUNT_ID/sub
 ## Limitaciones actuales
 - Solo texto: audios, imágenes y documentos reciben un mensaje pidiendo escribir.
 - Si el cliente envía varios mensajes seguidos, cada uno recibe su propia respuesta.
-- No hay traspaso automático a un humano; el bot indica el contacto configurado en `bot.ts`.
+- El traspaso a asesor solo marca el lead en Supabase (`requiere_asesor`); nadie recibe aviso automático todavía.

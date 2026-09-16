@@ -1,13 +1,19 @@
 import { after } from "next/server";
 import { ERROR_REPLY, HISTORY_LIMIT, UNSUPPORTED_MESSAGE_REPLY } from "@/config/bot";
 import { generateReply } from "@/lib/ai";
+import { enviarFichasPorCorreo } from "@/lib/email";
 import { env } from "@/lib/env";
-import { getStore } from "@/lib/store";
+import { procesarFlujo, type Canal, type Entrada } from "@/lib/flow";
+import { getStore, type ConversationStore } from "@/lib/store";
 import {
   extractInboundMessages,
   isValidSignature,
   markReadWithTyping,
+  sendButtons,
+  sendDocument,
+  sendList,
   sendText,
+  type IncomingMessage,
   type InboundEvent,
 } from "@/lib/whatsapp";
 
@@ -53,7 +59,7 @@ export async function POST(request: Request) {
   return new Response("OK", { status: 200 });
 }
 
-async function handleMessage({ message }: InboundEvent) {
+async function handleMessage({ message, contactName }: InboundEvent) {
   const store = getStore();
   const waId = message.from;
 
@@ -61,14 +67,26 @@ async function handleMessage({ message }: InboundEvent) {
     console.warn("[webhook] No se pudo marcar como leído:", err),
   );
 
-  if (message.type !== "text" || !message.text?.body) {
-    const isNew = await store.saveIncoming(waId, message.id, `[mensaje tipo ${message.type}]`);
-    if (isNew) await sendText(waId, UNSUPPORTED_MESSAGE_REPLY);
+  const entrada = toEntrada(message);
+  const isNew = await store.saveIncoming(waId, message.id, describeEntrada(entrada, message.type));
+  if (!isNew) return; // reintento de Meta: ya se respondió
+
+  const handledByFlow = await procesarFlujo(await store.getLead(waId), waId, entrada, {
+    canal: canalFor(store, waId),
+    saveLead: (patch) => store.saveLead(waId, patch),
+    deleteContact: () => store.deleteContact(waId),
+    fichasUrl: env.fichasUrl(),
+    politicaUrl: env.politicaDatosUrl(),
+    enviarCorreo: enviarFichasPorCorreo,
+    now: () => new Date().toISOString(),
+    nombrePerfil: contactName,
+  });
+  if (handledByFlow) return;
+
+  if (entrada.tipo === "otro") {
+    await sendText(waId, UNSUPPORTED_MESSAGE_REPLY);
     return;
   }
-
-  const isNew = await store.saveIncoming(waId, message.id, message.text.body);
-  if (!isNew) return; // reintento de Meta: ya se respondió
 
   let reply: string | null;
   try {
@@ -82,4 +100,40 @@ async function handleMessage({ message }: InboundEvent) {
   const finalReply = reply ?? ERROR_REPLY;
   await sendText(waId, finalReply);
   if (reply) await store.saveReply(waId, reply);
+}
+
+function toEntrada(message: IncomingMessage): Entrada {
+  if (message.type === "text" && message.text?.body) return { tipo: "texto", texto: message.text.body };
+  const reply = message.interactive?.button_reply ?? message.interactive?.list_reply;
+  if (message.type === "interactive" && reply) return { tipo: "opcion", id: reply.id, titulo: reply.title };
+  return { tipo: "otro" };
+}
+
+/** Cómo queda el mensaje entrante en el historial (lo que ve la IA después). */
+function describeEntrada(entrada: Entrada, type: string): string {
+  if (entrada.tipo === "texto") return entrada.texto;
+  if (entrada.tipo === "opcion") return entrada.titulo;
+  return `[mensaje tipo ${type}]`;
+}
+
+/** Envía por WhatsApp y guarda cada mensaje del bot en el historial. */
+function canalFor(store: ConversationStore, waId: string): Canal {
+  return {
+    async text(body) {
+      await sendText(waId, body);
+      await store.saveReply(waId, body);
+    },
+    async buttons(body, buttons) {
+      await sendButtons(waId, body, buttons);
+      await store.saveReply(waId, `${body}\n[Opciones: ${buttons.map((b) => b.title).join(" | ")}]`);
+    },
+    async list(body, buttonText, rows) {
+      await sendList(waId, body, buttonText, rows);
+      await store.saveReply(waId, `${body}\n[Opciones: ${rows.map((r) => r.title).join(" | ")}]`);
+    },
+    async document(link, filename) {
+      await sendDocument(waId, link, filename);
+      await store.saveReply(waId, `[Documento enviado: ${filename}]`);
+    },
+  };
 }
