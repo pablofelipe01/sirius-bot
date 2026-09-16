@@ -58,7 +58,7 @@ const PASOS_CON_OPCIONES: Paso[] = ["inicio", "correo", "correo_reintento", "eta
 const RE = {
   eliminarDatos: /\b(elimin|borr|suprim)\w*\b.*\b(datos|informacion|numero)\b/,
   pideAsesor: /\b(asesor|asesora|humano|una persona)\b/,
-  si: /^(si+|dale|listo|ok|okay|claro|de una|bueno|vamos|hagale|por favor|si (claro|gracias|por favor|empecemos|envie(me)?las))$/,
+  si: /^(si+|dale|listo|ok|okay|claro|de una|bueno|vamos|hagale|por favor|si (claro|gracias|por favor|empecemos|envi[ae](me)?las))$/,
   no: /^(no|no gracias|no por ahora|ahora no|despues|luego|mas tarde)$/,
   soloFichas: /\b(fichas?|pdf)\b/,
   sinCorreo: /^(no|no gracias|prefiero no\b.*|sin correo|no tengo\b.*|paso)$/,
