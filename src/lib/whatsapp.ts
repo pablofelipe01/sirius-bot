@@ -207,8 +207,14 @@ export function extractInboundMessages(payload: WebhookPayload): InboundEvent[] 
       if (change.field !== "messages" || !value?.messages) continue;
       if (value.metadata?.phone_number_id !== ourPhoneId) continue;
       for (const message of value.messages) {
-        const contact = value.contacts?.find((c) => c.wa_id === message.from);
-        events.push({ message, contactName: contact?.profile?.name });
+        // Normalmente `from` trae el número; si no viene, se toma del contacto del mismo webhook.
+        const from = message.from || (value.contacts?.length === 1 ? value.contacts[0].wa_id : undefined);
+        if (!from) {
+          console.error("[webhook] Mensaje sin número de remitente:", JSON.stringify(message));
+          continue;
+        }
+        const contact = value.contacts?.find((c) => c.wa_id === from);
+        events.push({ message: { ...message, from }, contactName: contact?.profile?.name });
       }
     }
   }

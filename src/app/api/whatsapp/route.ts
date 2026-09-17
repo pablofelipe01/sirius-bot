@@ -45,12 +45,22 @@ export async function POST(request: Request) {
 
   let events: InboundEvent[];
   let statuses: DeliveryStatus[];
+  let payload: unknown;
   try {
-    const payload = JSON.parse(rawBody);
-    events = extractInboundMessages(payload);
-    statuses = extractStatuses(payload);
-  } catch {
+    payload = JSON.parse(rawBody);
+    events = extractInboundMessages(payload as Parameters<typeof extractInboundMessages>[0]);
+    statuses = extractStatuses(payload as Parameters<typeof extractStatuses>[0]);
+  } catch (err) {
+    after(() => logWebhook(payload ?? { raw: rawBody }, `No se pudo leer: ${String(err)}`));
     return new Response("Bad request", { status: 400 });
+  }
+
+  if (statuses.length === 0 || events.length > 0) {
+    // Los mensajes entrantes (y cualquier aviso raro) se guardan crudos para diagnóstico.
+    after(() => logWebhook(payload));
+  }
+  if (events.length === 0 && statuses.length === 0) {
+    console.warn("[webhook] Webhook sin mensajes ni estados:", rawBody.slice(0, 2000));
   }
 
   if (statuses.length > 0) {
@@ -60,9 +70,10 @@ export async function POST(request: Request) {
   if (events.length > 0) {
     after(async () => {
       for (const event of events) {
-        await handleMessage(event).catch((err) =>
-          console.error(`[webhook] Error procesando ${event.message.id}:`, err),
-        );
+        await handleMessage(event).catch(async (err) => {
+          console.error(`[webhook] Error procesando ${event.message.id}:`, err);
+          await logWebhook({ message: event.message, contactName: event.contactName }, errorText(err));
+        });
       }
     });
   }
@@ -113,6 +124,19 @@ async function handleMessage({ message, contactName }: InboundEvent) {
   const finalReply = reply ?? ERROR_REPLY;
   const replyId = await sendText(waId, finalReply);
   if (reply) await store.saveReply(waId, reply, replyId);
+}
+
+function errorText(err: unknown): string {
+  if (err instanceof Error) return `${err.message}\n${err.stack ?? ""}`.slice(0, 4000);
+  return JSON.stringify(err).slice(0, 4000);
+}
+
+/** Guarda el webhook crudo (y el error, si lo hubo). Nunca lanza. */
+async function logWebhook(payload: unknown, error?: string) {
+  const db = getSupabaseAdmin();
+  if (!db) return;
+  const { error: dbError } = await db.from("wa_webhooks").insert({ payload, error: error ?? null });
+  if (dbError) console.error("[webhook] No se pudo guardar el webhook crudo:", dbError);
 }
 
 /** Guarda los estados de entrega. Los fallos también quedan en el log de Vercel con el código de error de Meta. */
