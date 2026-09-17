@@ -9,6 +9,7 @@ import { getStore, getSupabaseAdmin, type ConversationStore, type Lead } from "@
 import {
   extractInboundMessages,
   extractStatuses,
+  esTelefono,
   isValidSignature,
   markReadWithTyping,
   sendButtons,
@@ -81,10 +82,13 @@ export async function POST(request: Request) {
   return new Response("OK", { status: 200 });
 }
 
-async function handleMessage({ message, contactName }: InboundEvent) {
+async function handleMessage({ message, phone, userId, contactName, username }: InboundEvent) {
   const store = getStore();
-  const waId = message.from;
-  console.log(`[webhook] Mensaje ${message.type} de ${waId}`);
+
+  // Identificador de la conversación: el que ya tenga su lead (por BSUID), si no el número, y si no hay número, el BSUID.
+  const existing = userId ? await store.getLeadByUserId(userId) : null;
+  const waId = existing?.wa_id ?? phone ?? userId!;
+  console.log(`[webhook] Mensaje ${message.type} de ${waId}${userId ? ` (${userId})` : ""}`);
 
   await markReadWithTyping(message.id).catch((err) =>
     console.warn("[webhook] No se pudo marcar como leído:", err),
@@ -94,7 +98,14 @@ async function handleMessage({ message, contactName }: InboundEvent) {
   const isNew = await store.saveIncoming(waId, message.id, describeEntrada(entrada, message.type));
   if (!isNew) return; // reintento de Meta: ya se respondió
 
-  const handledByFlow = await procesarFlujo(await store.getLead(waId), waId, entrada, {
+  let lead = existing ?? (await store.getLead(waId));
+  if (lead && ((userId && lead.user_id !== userId) || (username && lead.username !== username))) {
+    // Lead creado antes con número: se le agrega el BSUID para reconocerlo aunque Meta deje de enviar el número.
+    await store.saveLead(waId, { user_id: userId ?? lead.user_id, username: username ?? lead.username });
+    lead = { ...lead, user_id: userId ?? lead.user_id, username: username ?? lead.username };
+  }
+
+  const handledByFlow = await procesarFlujo(lead, waId, entrada, {
     canal: canalFor(store, waId),
     saveLead: (patch) => store.saveLead(waId, patch),
     deleteContact: () => store.deleteContact(waId),
@@ -104,6 +115,8 @@ async function handleMessage({ message, contactName }: InboundEvent) {
     avisarAsesor,
     now: () => new Date().toISOString(),
     nombrePerfil: contactName,
+    userId,
+    username,
   });
   if (handledByFlow) return;
 
@@ -143,7 +156,7 @@ async function logWebhook(payload: unknown, error?: string) {
 async function saveStatuses(statuses: DeliveryStatus[]) {
   for (const s of statuses) {
     if (s.status === "failed") {
-      console.error(`[entrega] Falló el mensaje ${s.id} a ${s.recipient_id}:`, JSON.stringify(s.errors));
+      console.error(`[entrega] Falló el mensaje ${s.id} a ${s.recipient_id ?? s.recipient_user_id}:`, JSON.stringify(s.errors));
     }
   }
   const db = getSupabaseAdmin();
@@ -151,7 +164,7 @@ async function saveStatuses(statuses: DeliveryStatus[]) {
   const { error } = await db.from("wa_estados").insert(
     statuses.map((s) => ({
       wa_message_id: s.id,
-      wa_id: s.recipient_id,
+      wa_id: s.recipient_id ?? s.recipient_user_id ?? null,
       estado: s.status,
       error_codigo: s.errors?.[0]?.code ?? null,
       error_titulo: s.errors?.[0]?.title ?? s.errors?.[0]?.message ?? null,
@@ -170,7 +183,11 @@ async function avisarAsesor(lead: Lead, motivo: string): Promise<void> {
   try {
     await sendTemplate(AVISO_ASESOR.whatsapp, AVISO_ASESOR.plantilla, AVISO_ASESOR.idioma, [
       limpio(lead.nombre ?? lead.nombre_perfil, "Sin nombre"),
-      `https://wa.me/${lead.wa_id}`,
+      esTelefono(lead.wa_id)
+        ? `https://wa.me/${lead.wa_id}`
+        : lead.username
+          ? `Usuario @${lead.username} (sin número; búscalo en WhatsApp)`
+          : "Sin número disponible",
       limpio(lead.empresa, "No la dio"),
       limpio(motivo, "Necesita un asesor"),
     ]);

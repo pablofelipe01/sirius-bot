@@ -70,7 +70,7 @@ export async function listarLeads(vista: Vista, busqueda: string) {
   let leads = todos.filter((l) => enVista(l, vista));
   if (q) {
     leads = leads.filter((l) =>
-      normalize([l.nombre, l.nombre_perfil, l.empresa, l.municipio, l.departamento, l.correo, l.wa_id].join(" ")).includes(q),
+      normalize([l.nombre, l.nombre_perfil, l.username, l.empresa, l.municipio, l.departamento, l.correo, l.wa_id].join(" ")).includes(q),
     );
   }
   if (vista === "por_atender") {
@@ -131,16 +131,28 @@ export function origenTexto(origen: string | null): string {
 }
 
 export function nombreDe(lead: Lead): string {
-  return lead.nombre || lead.nombre_perfil || `+${lead.wa_id}`;
+  return lead.nombre || lead.nombre_perfil || contactoTexto(lead);
 }
 
-export function telefonoTexto(waId: string): string {
+function tieneTelefono(lead: Lead): boolean {
+  return /^\d+$/.test(lead.wa_id);
+}
+
+/** Teléfono formateado, o el nombre de usuario de WhatsApp si Meta no envió el número. */
+export function contactoTexto(lead: Lead): string {
+  if (!tieneTelefono(lead)) return lead.username ? `@${lead.username} (sin número)` : "Sin número";
   // 573118882058 → +57 311 888 2058
-  const m = waId.match(/^57(\d{3})(\d{3})(\d{4})$/);
-  return m ? `+57 ${m[1]} ${m[2]} ${m[3]}` : `+${waId}`;
+  const m = lead.wa_id.match(/^57(\d{3})(\d{3})(\d{4})$/);
+  return m ? `+57 ${m[1]} ${m[2]} ${m[3]}` : `+${lead.wa_id}`;
 }
 
-export function whatsappUrl(lead: Lead, asesor: string): string {
+export function telUrl(lead: Lead): string | null {
+  return tieneTelefono(lead) ? `tel:+${lead.wa_id}` : null;
+}
+
+/** Enlace para abrir el chat con saludo escrito. null si no hay número (la persona usa nombre de usuario). */
+export function whatsappUrl(lead: Lead, asesor: string): string | null {
+  if (!tieneTelefono(lead)) return null;
   const saludo = lead.nombre ? `Hola, ${lead.nombre}` : "Hola";
   const texto = `${saludo}. Soy ${asesor}, de Sirius Regenerative. Te escribo por la información de biochar y biológicos que pediste.`;
   return `https://wa.me/${lead.wa_id}?text=${encodeURIComponent(texto)}`;

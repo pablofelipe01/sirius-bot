@@ -11,7 +11,7 @@ import {
   nombreDe,
   origenTexto,
   pasoTexto,
-  telefonoTexto,
+  contactoTexto,
   whatsappUrl,
   type Vista,
 } from "@/lib/asesores-data";
@@ -71,6 +71,7 @@ export default async function AsesoresPage(props: PageProps<"/asesores">) {
         <div className={styles.lista}>
           {leads.map((lead) => {
             const estado = estadoDe(lead);
+            const chatUrl = whatsappUrl(lead, sesion.nombre);
             const ubicacion = [lead.municipio, lead.departamento].filter(Boolean).join(", ");
             return (
               <article key={lead.id} className={`${styles.tarjeta} ${estado === "asesor" ? styles.tarjetaAsesor : ""}`}>
@@ -81,7 +82,7 @@ export default async function AsesoresPage(props: PageProps<"/asesores">) {
                     </Link>
                     <div className={styles.sub}>
                       {lead.empresa ? `${lead.empresa} · ` : ""}
-                      {telefonoTexto(lead.wa_id)}
+                      {contactoTexto(lead)}
                     </div>
                   </div>
                   <span className={`${styles.badge} ${styles[`badge_${estado}`]}`}>{ESTADO_TEXTO[estado]}</span>
@@ -103,14 +104,16 @@ export default async function AsesoresPage(props: PageProps<"/asesores">) {
                 </div>
 
                 <div className={styles.acciones}>
-                  <a
-                    className={`${styles.boton} ${styles.botonWhatsapp} ${styles.botonChico}`}
-                    href={whatsappUrl(lead, sesion.nombre)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    WhatsApp
-                  </a>
+                  {chatUrl && (
+                    <a
+                      className={`${styles.boton} ${styles.botonWhatsapp} ${styles.botonChico}`}
+                      href={chatUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      WhatsApp
+                    </a>
+                  )}
                   <Link className={`${styles.boton} ${styles.botonChico}`} href={`/asesores/${lead.id}`}>
                     Ver detalle
                   </Link>

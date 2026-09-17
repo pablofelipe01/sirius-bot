@@ -32,6 +32,19 @@ async function graphPost(body: unknown): Promise<string | undefined> {
   return data?.messages?.[0]?.id;
 }
 
+/**
+ * Campo de destinatario según el identificador: número (solo dígitos) → `to`;
+ * business-scoped user ID ("CO.1060…", cuando la persona usa nombre de usuario y no hay número) → `recipient`.
+ */
+function destino(id: string): { to: string } | { recipient: string } {
+  return /^\d+$/.test(id) ? { to: id } : { recipient: id };
+}
+
+/** true si el identificador es un número de teléfono (y no un BSUID). */
+export function esTelefono(id: string): boolean {
+  return /^\d+$/.test(id);
+}
+
 /** Marca el mensaje como leído (doble check azul) y muestra "escribiendo…". */
 export async function markReadWithTyping(messageId: string): Promise<void> {
   await graphPost({
@@ -49,7 +62,7 @@ export async function sendText(to: string, text: string): Promise<string | undef
     id = await graphPost({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to,
+      ...destino(to),
       type: "text",
       text: { preview_url: false, body: chunk },
     });
@@ -67,7 +80,7 @@ export async function sendButtons(to: string, body: string, buttons: Button[]): 
   return graphPost({
     messaging_product: "whatsapp",
     recipient_type: "individual",
-    to,
+    ...destino(to),
     type: "interactive",
     interactive: {
       type: "button",
@@ -88,7 +101,7 @@ export async function sendList(to: string, body: string, buttonText: string, row
   return graphPost({
     messaging_product: "whatsapp",
     recipient_type: "individual",
-    to,
+    ...destino(to),
     type: "interactive",
     interactive: {
       type: "list",
@@ -103,7 +116,7 @@ export async function sendDocument(to: string, link: string, filename: string): 
   return graphPost({
     messaging_product: "whatsapp",
     recipient_type: "individual",
-    to,
+    ...destino(to),
     type: "document",
     document: { link, filename },
   });
@@ -114,7 +127,7 @@ export async function sendTemplate(to: string, name: string, language: string, p
   return graphPost({
     messaging_product: "whatsapp",
     recipient_type: "individual",
-    to,
+    ...destino(to),
     type: "template",
     template: {
       name,
@@ -143,7 +156,8 @@ function splitText(text: string): string[] {
 
 export interface IncomingMessage {
   id: string;
-  from: string; // wa_id del cliente (número sin +)
+  from?: string; // número del cliente (sin +); Meta lo omite si la persona usa nombre de usuario
+  from_user_id?: string; // business-scoped user ID (BSUID), siempre presente
   type: string;
   timestamp: string;
   text?: { body: string };
@@ -161,7 +175,7 @@ interface WebhookPayload {
       field?: string;
       value?: {
         metadata?: { phone_number_id?: string };
-        contacts?: { wa_id: string; profile?: { name?: string } }[];
+        contacts?: { wa_id?: string; user_id?: string; profile?: { name?: string; username?: string } }[];
         messages?: IncomingMessage[];
         statuses?: DeliveryStatus[];
       };
@@ -174,7 +188,8 @@ export interface DeliveryStatus {
   id: string; // wamid del mensaje enviado
   status: "sent" | "delivered" | "read" | "failed" | string;
   timestamp: string; // segundos Unix
-  recipient_id: string;
+  recipient_id?: string; // número; se omite si se envió a un BSUID sin número conocido
+  recipient_user_id?: string; // BSUID
   errors?: { code: number; title?: string; message?: string; error_data?: { details?: string } }[];
 }
 
@@ -193,7 +208,10 @@ export function extractStatuses(payload: WebhookPayload): DeliveryStatus[] {
 
 export interface InboundEvent {
   message: IncomingMessage;
+  phone?: string; // número, si Meta lo envía
+  userId?: string; // BSUID
   contactName?: string;
+  username?: string;
 }
 
 /** Extrae los mensajes entrantes dirigidos a nuestro número (ignora estados de entrega). */
@@ -207,14 +225,17 @@ export function extractInboundMessages(payload: WebhookPayload): InboundEvent[] 
       if (change.field !== "messages" || !value?.messages) continue;
       if (value.metadata?.phone_number_id !== ourPhoneId) continue;
       for (const message of value.messages) {
-        // Normalmente `from` trae el número; si no viene, se toma del contacto del mismo webhook.
-        const from = message.from || (value.contacts?.length === 1 ? value.contacts[0].wa_id : undefined);
-        if (!from) {
-          console.error("[webhook] Mensaje sin número de remitente:", JSON.stringify(message));
+        const contacts = value.contacts ?? [];
+        const contact =
+          contacts.find((c) => (message.from_user_id && c.user_id === message.from_user_id) || (message.from && c.wa_id === message.from)) ??
+          (contacts.length === 1 ? contacts[0] : undefined);
+        const phone = message.from || contact?.wa_id;
+        const userId = message.from_user_id || contact?.user_id;
+        if (!phone && !userId) {
+          console.error("[webhook] Mensaje sin número ni BSUID:", JSON.stringify(message));
           continue;
         }
-        const contact = value.contacts?.find((c) => c.wa_id === from);
-        events.push({ message: { ...message, from }, contactName: contact?.profile?.name });
+        events.push({ message, phone, userId, contactName: contact?.profile?.name, username: contact?.profile?.username });
       }
     }
   }

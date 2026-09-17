@@ -31,6 +31,9 @@ export interface FlowDeps {
   now(): string;
   /** Nombre del perfil de WhatsApp, si llegó en el webhook. */
   nombrePerfil?: string;
+  /** BSUID y nombre de usuario de WhatsApp, si llegaron en el webhook. */
+  userId?: string;
+  username?: string;
 }
 
 type Paso =
@@ -96,6 +99,8 @@ export async function procesarFlujo(actual: Lead | null, waId: string, entrada: 
       intentos_fallidos: 0,
       origen: origen ?? lead.origen,
       nombre_perfil: deps.nombrePerfil ?? lead.nombre_perfil,
+      user_id: deps.userId ?? lead.user_id,
+      username: deps.username ?? lead.username,
     });
     await preguntar("inicio", lead, deps);
     return true;

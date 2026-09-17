@@ -12,7 +12,8 @@ import {
   obtenerLead,
   origenTexto,
   pasoTexto,
-  telefonoTexto,
+  contactoTexto,
+  telUrl,
   whatsappUrl,
 } from "@/lib/asesores-data";
 import { guardarNotas, marcarAtendido, reabrir } from "../actions";
@@ -27,11 +28,14 @@ export default async function LeadPage(props: PageProps<"/asesores/[id]">) {
   const mensajes = await conversacion(lead.wa_id);
   const estado = estadoDe(lead);
   const ubicacion = [lead.municipio, lead.departamento].filter(Boolean).join(", ");
+  const chatUrl = whatsappUrl(lead, sesion.nombre);
+  const llamarUrl = telUrl(lead);
 
   const datos: [string, React.ReactNode][] = [
     ["Nombre", lead.nombre],
     ["Nombre en WhatsApp", lead.nombre_perfil],
-    ["Teléfono", telefonoTexto(lead.wa_id)],
+    ["Teléfono", contactoTexto(lead)],
+    ["Usuario de WhatsApp", lead.username ? `@${lead.username}` : null],
     ["Empresa o finca", lead.empresa],
     [
       "Correo",
@@ -61,13 +65,19 @@ export default async function LeadPage(props: PageProps<"/asesores/[id]">) {
         <div className={styles.tarjetaArriba}>
           <div>
             <h1 className={styles.titulo}>{nombreDe(lead)}</h1>
-            <div className={styles.sub}>{lead.empresa ?? telefonoTexto(lead.wa_id)}</div>
+            <div className={styles.sub}>{lead.empresa ?? contactoTexto(lead)}</div>
           </div>
           <span className={`${styles.badge} ${styles[`badge_${estado}`]}`}>{ESTADO_TEXTO[estado]}</span>
         </div>
 
         {lead.requiere_asesor && lead.motivo_asesor && !lead.atendido_en && (
           <div className={styles.aviso}>{lead.motivo_asesor}</div>
+        )}
+        {!chatUrl && (
+          <div className={styles.avisoOk}>
+            WhatsApp no compartió su número porque usa nombre de usuario.
+            {lead.username ? ` Búscalo en WhatsApp como @${lead.username}.` : ""} Si dejó correo, escríbele por ahí.
+          </div>
         )}
         {lead.atendido_en && (
           <div className={styles.avisoOk}>
@@ -76,17 +86,16 @@ export default async function LeadPage(props: PageProps<"/asesores/[id]">) {
         )}
 
         <div className={styles.acciones}>
-          <a
-            className={`${styles.boton} ${styles.botonWhatsapp}`}
-            href={whatsappUrl(lead, sesion.nombre)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Escribir por WhatsApp
-          </a>
-          <a className={styles.boton} href={`tel:+${lead.wa_id}`}>
-            Llamar
-          </a>
+          {chatUrl && (
+            <a className={`${styles.boton} ${styles.botonWhatsapp}`} href={chatUrl} target="_blank" rel="noopener noreferrer">
+              Escribir por WhatsApp
+            </a>
+          )}
+          {llamarUrl && (
+            <a className={styles.boton} href={llamarUrl}>
+              Llamar
+            </a>
+          )}
           {lead.correo && (
             <a className={styles.boton} href={`mailto:${lead.correo}`}>
               Enviar correo

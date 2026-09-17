@@ -10,7 +10,9 @@ export interface StoredMessage {
 
 /** Fila de la tabla `leads` (mismos nombres de columna). */
 export interface Lead {
-  wa_id: string;
+  wa_id: string; // número, o BSUID si la persona usa nombre de usuario y Meta no envió el número
+  user_id: string | null; // BSUID
+  username: string | null;
   nombre_perfil: string | null;
   origen: string | null;
   paso: string;
@@ -40,6 +42,8 @@ export type LeadPatch = Partial<Omit<Lead, "wa_id">>;
 export function emptyLead(waId: string): Lead {
   return {
     wa_id: waId,
+    user_id: null,
+    username: null,
     nombre_perfil: null,
     origen: null,
     paso: "inicio",
@@ -73,6 +77,7 @@ export interface ConversationStore {
   /** Últimos `limit` mensajes en orden cronológico. */
   getHistory(waId: string, limit: number): Promise<StoredMessage[]>;
   getLead(waId: string): Promise<Lead | null>;
+  getLeadByUserId(userId: string): Promise<Lead | null>;
   /** Crea o actualiza el lead del número. */
   saveLead(waId: string, patch: LeadPatch): Promise<void>;
   /** Borra el lead y todo el historial del número (solicitud de eliminación de datos). */
@@ -117,6 +122,12 @@ class SupabaseStore implements ConversationStore {
     return data as Lead | null;
   }
 
+  async getLeadByUserId(userId: string) {
+    const { data, error } = await this.db.from("leads").select("*").eq("user_id", userId).maybeSingle();
+    if (error) throw error;
+    return data as Lead | null;
+  }
+
   async saveLead(waId: string, patch: LeadPatch) {
     const { error } = await this.db.from("leads").upsert({ ...patch, wa_id: waId }, { onConflict: "wa_id" });
     if (error) throw error;
@@ -154,6 +165,10 @@ class MemoryStore implements ConversationStore {
 
   async getLead(waId: string) {
     return this.leads.get(waId) ?? null;
+  }
+
+  async getLeadByUserId(userId: string) {
+    return [...this.leads.values()].find((lead) => lead.user_id === userId) ?? null;
   }
 
   async saveLead(waId: string, patch: LeadPatch) {

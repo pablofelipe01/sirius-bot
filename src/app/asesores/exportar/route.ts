@@ -6,7 +6,7 @@ import {
   fechaTexto,
   hectareasTexto,
   origenTexto,
-  telefonoTexto,
+  contactoTexto,
   todosLosLeads,
 } from "@/lib/asesores-data";
 
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     "Atendido", "Atendido por", "Notas",
   ];
   const filas = leads.map((l) => [
-    ESTADO_TEXTO[estadoDe(l)], l.nombre, l.nombre_perfil, telefonoTexto(l.wa_id), l.empresa, l.correo ?? l.correo_sin_validar,
+    ESTADO_TEXTO[estadoDe(l)], l.nombre, l.nombre_perfil, contactoTexto(l), l.empresa, l.correo ?? l.correo_sin_validar,
     etapaTexto(l.etapa), hectareasTexto(l.hectareas), l.municipio, l.departamento, origenTexto(l.origen),
     fechaTexto(l.created_at), fechaTexto(l.completado_en), fechaTexto(l.fichas_enviadas_en), l.motivo_asesor,
     fechaTexto(l.atendido_en), l.atendido_por, l.notas,
