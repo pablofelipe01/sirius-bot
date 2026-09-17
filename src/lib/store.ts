@@ -68,7 +68,8 @@ export function emptyLead(waId: string): Lead {
 export interface ConversationStore {
   /** Guarda el mensaje entrante. Devuelve false si ya se había procesado (reintento de Meta). */
   saveIncoming(waId: string, waMessageId: string, content: string): Promise<boolean>;
-  saveReply(waId: string, content: string): Promise<void>;
+  /** `waMessageId`: id que devolvió Meta al enviar, para cruzarlo con los estados de entrega. */
+  saveReply(waId: string, content: string, waMessageId?: string): Promise<void>;
   /** Últimos `limit` mensajes en orden cronológico. */
   getHistory(waId: string, limit: number): Promise<StoredMessage[]>;
   getLead(waId: string): Promise<Lead | null>;
@@ -92,10 +93,10 @@ class SupabaseStore implements ConversationStore {
     return true;
   }
 
-  async saveReply(waId: string, content: string) {
+  async saveReply(waId: string, content: string, waMessageId?: string) {
     const { error } = await this.db
       .from("wa_mensajes")
-      .insert({ wa_id: waId, rol: "assistant", contenido: content });
+      .insert({ wa_id: waId, rol: "assistant", contenido: content, wa_message_id_enviado: waMessageId ?? null });
     if (error) throw error;
   }
 

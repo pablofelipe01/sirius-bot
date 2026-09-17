@@ -5,9 +5,10 @@ import { generateReply } from "@/lib/ai";
 import { enviarFichasPorCorreo } from "@/lib/email";
 import { env } from "@/lib/env";
 import { procesarFlujo, type Canal, type Entrada } from "@/lib/flow";
-import { getStore, type ConversationStore, type Lead } from "@/lib/store";
+import { getStore, getSupabaseAdmin, type ConversationStore, type Lead } from "@/lib/store";
 import {
   extractInboundMessages,
+  extractStatuses,
   isValidSignature,
   markReadWithTyping,
   sendButtons,
@@ -15,6 +16,7 @@ import {
   sendList,
   sendTemplate,
   sendText,
+  type DeliveryStatus,
   type IncomingMessage,
   type InboundEvent,
 } from "@/lib/whatsapp";
@@ -42,10 +44,17 @@ export async function POST(request: Request) {
   }
 
   let events: InboundEvent[];
+  let statuses: DeliveryStatus[];
   try {
-    events = extractInboundMessages(JSON.parse(rawBody));
+    const payload = JSON.parse(rawBody);
+    events = extractInboundMessages(payload);
+    statuses = extractStatuses(payload);
   } catch {
     return new Response("Bad request", { status: 400 });
+  }
+
+  if (statuses.length > 0) {
+    after(() => saveStatuses(statuses));
   }
 
   if (events.length > 0) {
@@ -64,6 +73,7 @@ export async function POST(request: Request) {
 async function handleMessage({ message, contactName }: InboundEvent) {
   const store = getStore();
   const waId = message.from;
+  console.log(`[webhook] Mensaje ${message.type} de ${waId}`);
 
   await markReadWithTyping(message.id).catch((err) =>
     console.warn("[webhook] No se pudo marcar como leído:", err),
@@ -101,8 +111,31 @@ async function handleMessage({ message, contactName }: InboundEvent) {
   }
 
   const finalReply = reply ?? ERROR_REPLY;
-  await sendText(waId, finalReply);
-  if (reply) await store.saveReply(waId, reply);
+  const replyId = await sendText(waId, finalReply);
+  if (reply) await store.saveReply(waId, reply, replyId);
+}
+
+/** Guarda los estados de entrega. Los fallos también quedan en el log de Vercel con el código de error de Meta. */
+async function saveStatuses(statuses: DeliveryStatus[]) {
+  for (const s of statuses) {
+    if (s.status === "failed") {
+      console.error(`[entrega] Falló el mensaje ${s.id} a ${s.recipient_id}:`, JSON.stringify(s.errors));
+    }
+  }
+  const db = getSupabaseAdmin();
+  if (!db) return;
+  const { error } = await db.from("wa_estados").insert(
+    statuses.map((s) => ({
+      wa_message_id: s.id,
+      wa_id: s.recipient_id,
+      estado: s.status,
+      error_codigo: s.errors?.[0]?.code ?? null,
+      error_titulo: s.errors?.[0]?.title ?? s.errors?.[0]?.message ?? null,
+      error_detalle: s.errors?.[0]?.error_data?.details ?? null,
+      ocurrido_en: new Date(Number(s.timestamp) * 1000).toISOString(),
+    })),
+  );
+  if (error) console.error("[entrega] No se pudieron guardar los estados:", error);
 }
 
 /** Manda al asesor la plantilla con los datos del cliente. Si falla, solo queda en el log (el lead ya está marcado). */
@@ -140,20 +173,20 @@ function describeEntrada(entrada: Entrada, type: string): string {
 function canalFor(store: ConversationStore, waId: string): Canal {
   return {
     async text(body) {
-      await sendText(waId, body);
-      await store.saveReply(waId, body);
+      const id = await sendText(waId, body);
+      await store.saveReply(waId, body, id);
     },
     async buttons(body, buttons) {
-      await sendButtons(waId, body, buttons);
-      await store.saveReply(waId, `${body}\n[Opciones: ${buttons.map((b) => b.title).join(" | ")}]`);
+      const id = await sendButtons(waId, body, buttons);
+      await store.saveReply(waId, `${body}\n[Opciones: ${buttons.map((b) => b.title).join(" | ")}]`, id);
     },
     async list(body, buttonText, rows) {
-      await sendList(waId, body, buttonText, rows);
-      await store.saveReply(waId, `${body}\n[Opciones: ${rows.map((r) => r.title).join(" | ")}]`);
+      const id = await sendList(waId, body, buttonText, rows);
+      await store.saveReply(waId, `${body}\n[Opciones: ${rows.map((r) => r.title).join(" | ")}]`, id);
     },
     async document(link, filename) {
-      await sendDocument(waId, link, filename);
-      await store.saveReply(waId, `[Documento enviado: ${filename}]`);
+      const id = await sendDocument(waId, link, filename);
+      await store.saveReply(waId, `[Documento enviado: ${filename}]`, id);
     },
   };
 }

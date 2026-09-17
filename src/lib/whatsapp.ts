@@ -14,7 +14,8 @@ export function isValidSignature(rawBody: string, signatureHeader: string | null
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-async function graphPost(body: unknown): Promise<void> {
+/** Envía a la Cloud API. Devuelve el id del mensaje creado (wamid…), si lo hay. */
+async function graphPost(body: unknown): Promise<string | undefined> {
   const url = `https://graph.facebook.com/${env.whatsappApiVersion()}/${env.whatsappPhoneNumberId()}/messages`;
   const res = await fetch(url, {
     method: "POST",
@@ -27,6 +28,8 @@ async function graphPost(body: unknown): Promise<void> {
   if (!res.ok) {
     throw new Error(`WhatsApp API ${res.status}: ${await res.text()}`);
   }
+  const data = (await res.json().catch(() => null)) as { messages?: { id: string }[] } | null;
+  return data?.messages?.[0]?.id;
 }
 
 /** Marca el mensaje como leído (doble check azul) y muestra "escribiendo…". */
@@ -39,9 +42,11 @@ export async function markReadWithTyping(messageId: string): Promise<void> {
   });
 }
 
-export async function sendText(to: string, text: string): Promise<void> {
+/** Devuelve el id del último fragmento enviado. */
+export async function sendText(to: string, text: string): Promise<string | undefined> {
+  let id: string | undefined;
   for (const chunk of splitText(text)) {
-    await graphPost({
+    id = await graphPost({
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to,
@@ -49,6 +54,7 @@ export async function sendText(to: string, text: string): Promise<void> {
       text: { preview_url: false, body: chunk },
     });
   }
+  return id;
 }
 
 export interface Button {
@@ -57,8 +63,8 @@ export interface Button {
 }
 
 /** Mensaje con hasta 3 botones de respuesta rápida. */
-export async function sendButtons(to: string, body: string, buttons: Button[]): Promise<void> {
-  await graphPost({
+export async function sendButtons(to: string, body: string, buttons: Button[]): Promise<string | undefined> {
+  return graphPost({
     messaging_product: "whatsapp",
     recipient_type: "individual",
     to,
@@ -78,8 +84,8 @@ export interface ListRow {
 }
 
 /** Lista desplegable (hasta 10 opciones). `buttonText` es el texto del botón que la abre (máx. 20). */
-export async function sendList(to: string, body: string, buttonText: string, rows: ListRow[]): Promise<void> {
-  await graphPost({
+export async function sendList(to: string, body: string, buttonText: string, rows: ListRow[]): Promise<string | undefined> {
+  return graphPost({
     messaging_product: "whatsapp",
     recipient_type: "individual",
     to,
@@ -93,8 +99,8 @@ export async function sendList(to: string, body: string, buttonText: string, row
 }
 
 /** Documento por URL pública (WhatsApp lo descarga; máx. 100 MB). */
-export async function sendDocument(to: string, link: string, filename: string): Promise<void> {
-  await graphPost({
+export async function sendDocument(to: string, link: string, filename: string): Promise<string | undefined> {
+  return graphPost({
     messaging_product: "whatsapp",
     recipient_type: "individual",
     to,
@@ -104,8 +110,8 @@ export async function sendDocument(to: string, link: string, filename: string): 
 }
 
 /** Plantilla aprobada por Meta, con variables de texto en el cuerpo ({{1}}, {{2}}…). */
-export async function sendTemplate(to: string, name: string, language: string, params: string[]): Promise<void> {
-  await graphPost({
+export async function sendTemplate(to: string, name: string, language: string, params: string[]): Promise<string | undefined> {
+  return graphPost({
     messaging_product: "whatsapp",
     recipient_type: "individual",
     to,
@@ -157,9 +163,32 @@ interface WebhookPayload {
         metadata?: { phone_number_id?: string };
         contacts?: { wa_id: string; profile?: { name?: string } }[];
         messages?: IncomingMessage[];
+        statuses?: DeliveryStatus[];
       };
     }[];
   }[];
+}
+
+/** Estado de entrega de un mensaje enviado por el bot. */
+export interface DeliveryStatus {
+  id: string; // wamid del mensaje enviado
+  status: "sent" | "delivered" | "read" | "failed" | string;
+  timestamp: string; // segundos Unix
+  recipient_id: string;
+  errors?: { code: number; title?: string; message?: string; error_data?: { details?: string } }[];
+}
+
+/** Extrae los estados de entrega (sent/delivered/read/failed) de nuestro número. */
+export function extractStatuses(payload: WebhookPayload): DeliveryStatus[] {
+  if (payload.object !== "whatsapp_business_account") return [];
+  const ourPhoneId = env.whatsappPhoneNumberId();
+  return (payload.entry ?? []).flatMap((entry) =>
+    (entry.changes ?? []).flatMap((change) =>
+      change.field === "messages" && change.value?.metadata?.phone_number_id === ourPhoneId
+        ? (change.value.statuses ?? [])
+        : [],
+    ),
+  );
 }
 
 export interface InboundEvent {
