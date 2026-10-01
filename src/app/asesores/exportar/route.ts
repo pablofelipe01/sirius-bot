@@ -20,13 +20,13 @@ export async function GET(request: Request) {
   const columnas = [
     "Estado", "Nombre", "Nombre en WhatsApp", "Teléfono", "Empresa o finca", "Correo", "Etapa", "Hectáreas",
     "Municipio", "Departamento", "Origen", "Llegó", "Terminó cuestionario", "Fichas enviadas", "Motivo asesor",
-    "Atendido", "Atendido por", "Notas",
+    "Atendido", "Atendido por", "Notas", "Cliente en el CRM",
   ];
   const filas = leads.map((l) => [
     ESTADO_TEXTO[estadoDe(l)], l.nombre, l.nombre_perfil, contactoTexto(l), l.empresa, l.correo ?? l.correo_sin_validar,
     etapaTexto(l.etapa), hectareasTexto(l.hectareas), l.municipio, l.departamento, origenTexto(l.origen),
     fechaTexto(l.created_at), fechaTexto(l.completado_en), fechaTexto(l.fichas_enviadas_en), l.motivo_asesor,
-    fechaTexto(l.atendido_en), l.atendido_por, l.notas,
+    fechaTexto(l.atendido_en), l.atendido_por, l.notas, l.crm_cliente_id,
   ]);
 
   const celda = (valor: string | null | undefined) => {

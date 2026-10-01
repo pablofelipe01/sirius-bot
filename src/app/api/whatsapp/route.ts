@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { ERROR_REPLY, HISTORY_LIMIT, UNSUPPORTED_MESSAGE_REPLY } from "@/config/bot";
 import { AVISO_ASESOR } from "@/config/flujo";
 import { generateReply } from "@/lib/ai";
+import { configCrm, darDeBajaEnCrm, listoParaCrm, sincronizarLead } from "@/lib/crm";
 import { enviarFichasPorCorreo } from "@/lib/email";
 import { env } from "@/lib/env";
 import { procesarFlujo, type Canal, type Entrada } from "@/lib/flow";
@@ -105,38 +106,79 @@ async function handleMessage({ message, phone, userId, contactName, username }: 
     lead = { ...lead, user_id: userId ?? lead.user_id, username: username ?? lead.username };
   }
 
-  const handledByFlow = await procesarFlujo(lead, waId, entrada, {
-    canal: canalFor(store, waId),
-    saveLead: (patch) => store.saveLead(waId, patch),
-    deleteContact: () => store.deleteContact(waId),
-    fichasUrl: env.fichasUrl(),
-    politicaUrl: env.politicaDatosUrl(),
-    enviarCorreo: enviarFichasPorCorreo,
-    avisarAsesor,
-    now: () => new Date().toISOString(),
-    nombrePerfil: contactName,
-    userId,
-    username,
-  });
-  if (handledByFlow) return;
-
-  if (entrada.tipo === "otro") {
-    await sendText(waId, UNSUPPORTED_MESSAGE_REPLY);
-    return;
-  }
-
-  let reply: string | null;
+  // El flujo y la IA responden primero; al final, pase lo que pase, el lead se
+  // lleva al maestro de clientes del CRM.
   try {
-    const history = await store.getHistory(waId, HISTORY_LIMIT);
-    reply = await generateReply(history);
-  } catch (err) {
-    console.error("[webhook] Error de IA:", err);
-    reply = null;
-  }
+    const handledByFlow = await procesarFlujo(lead, waId, entrada, {
+      canal: canalFor(store, waId),
+      saveLead: (patch) => store.saveLead(waId, patch),
+      deleteContact: () => borrarDatos(store, waId),
+      fichasUrl: env.fichasUrl(),
+      politicaUrl: env.politicaDatosUrl(),
+      enviarCorreo: enviarFichasPorCorreo,
+      avisarAsesor,
+      now: () => new Date().toISOString(),
+      nombrePerfil: contactName,
+      userId,
+      username,
+    });
+    if (handledByFlow) return;
 
-  const finalReply = reply ?? ERROR_REPLY;
-  const replyId = await sendText(waId, finalReply);
-  if (reply) await store.saveReply(waId, reply, replyId);
+    if (entrada.tipo === "otro") {
+      await sendText(waId, UNSUPPORTED_MESSAGE_REPLY);
+      return;
+    }
+
+    let reply: string | null;
+    try {
+      const history = await store.getHistory(waId, HISTORY_LIMIT);
+      reply = await generateReply(history);
+    } catch (err) {
+      console.error("[webhook] Error de IA:", err);
+      reply = null;
+    }
+
+    const finalReply = reply ?? ERROR_REPLY;
+    const replyId = await sendText(waId, finalReply);
+    if (reply) await store.saveReply(waId, reply, replyId);
+  } finally {
+    await sincronizarConCrm(store, waId);
+  }
+}
+
+/**
+ * Lleva el lead a "Sirius Clients Core" (el maestro de clientes del CRM).
+ *
+ * Corre después de haberle respondido a la persona y nunca lanza: si Airtable
+ * está caído o las credenciales no están puestas, la conversación de WhatsApp
+ * se comporta exactamente igual y el lead se reintenta en el siguiente mensaje
+ * o desde el botón del panel de asesores.
+ */
+async function sincronizarConCrm(store: ConversationStore, waId: string): Promise<void> {
+  if (!configCrm()) return;
+  try {
+    const lead = await store.getLead(waId);
+    if (!lead || !listoParaCrm(lead)) return;
+
+    const { resultado, patch } = await sincronizarLead(lead);
+    if (Object.keys(patch).length > 0) await store.saveLead(waId, patch);
+    if (resultado.estado === "creado") {
+      console.log(`[crm] ${waId} quedó como cliente ${resultado.clienteId ?? resultado.recordId}`);
+    }
+  } catch (err) {
+    console.error(`[crm] No se pudo sincronizar ${waId}:`, err);
+  }
+}
+
+/**
+ * Eliminación de datos (Habeas Data): además de borrar el lead y su historial,
+ * se inactiva la ficha que el bot haya creado en el CRM. Si eso falla, el
+ * borrado en el bot se hace igual — el titular pidió que no lo tuviéramos.
+ */
+async function borrarDatos(store: ConversationStore, waId: string): Promise<void> {
+  const lead = await store.getLead(waId).catch(() => null);
+  if (lead?.crm_cliente_record_id) await darDeBajaEnCrm(lead);
+  await store.deleteContact(waId);
 }
 
 function errorText(err: unknown): string {

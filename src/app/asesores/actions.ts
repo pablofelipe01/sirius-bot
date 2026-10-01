@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cerrarSesion, iniciarSesion, requerirAsesor } from "@/lib/asesores-auth";
-import { actualizarSeguimiento } from "@/lib/asesores-data";
+import { actualizarSeguimiento, resumenTexto, sincronizarTodosConCrm } from "@/lib/asesores-data";
 
 export interface EstadoLogin {
   error?: string;
@@ -49,4 +49,17 @@ export async function guardarNotas(formData: FormData) {
   const notas = String(formData.get("notas") ?? "").trim().slice(0, 5000);
   await actualizarSeguimiento(idDe(formData), { notas: notas || null });
   revalidatePath("/asesores", "layout");
+}
+
+/**
+ * Carga inicial (y reintento) de los leads en Sirius Clients Core. El bot ya
+ * sincroniza solo cada vez que alguien escribe; esto es para los que ya
+ * estaban antes de la integración y para los que quedaron con error.
+ */
+export async function sincronizarCrm(formData: FormData) {
+  await requerirAsesor();
+  const vista = String(formData.get("vista") ?? "por_atender");
+  const resumen = await sincronizarTodosConCrm();
+  revalidatePath("/asesores", "layout");
+  redirect(`/asesores?vista=${encodeURIComponent(vista)}&crm=${encodeURIComponent(resumenTexto(resumen))}`);
 }

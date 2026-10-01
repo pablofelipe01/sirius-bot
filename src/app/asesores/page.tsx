@@ -15,7 +15,7 @@ import {
   whatsappUrl,
   type Vista,
 } from "@/lib/asesores-data";
-import { marcarAtendido } from "./actions";
+import { marcarAtendido, sincronizarCrm } from "./actions";
 import styles from "./asesores.module.css";
 
 export default async function AsesoresPage(props: PageProps<"/asesores">) {
@@ -24,6 +24,8 @@ export default async function AsesoresPage(props: PageProps<"/asesores">) {
   const vistaParam = typeof params.vista === "string" ? params.vista : "";
   const vista: Vista = VISTAS.some((v) => v.id === vistaParam) ? (vistaParam as Vista) : "por_atender";
   const q = typeof params.q === "string" ? params.q : "";
+  // Resumen de la última sincronización con el CRM, que deja la acción al volver.
+  const avisoCrm = typeof params.crm === "string" ? params.crm : "";
 
   const { leads, conteos } = await listarLeads(vista, q);
 
@@ -61,7 +63,15 @@ export default async function AsesoresPage(props: PageProps<"/asesores">) {
         <a className={styles.boton} href="/asesores/exportar">
           Descargar Excel
         </a>
+        <form action={sincronizarCrm}>
+          <input type="hidden" name="vista" value={vista} />
+          <button className={styles.boton} type="submit" title="Crea en el CRM los clientes que todavía no están">
+            Sincronizar con el CRM
+          </button>
+        </form>
       </div>
+
+      {avisoCrm && <div className={styles.avisoOk}>{avisoCrm}</div>}
 
       {leads.length === 0 ? (
         <div className={styles.vacio}>
@@ -96,6 +106,7 @@ export default async function AsesoresPage(props: PageProps<"/asesores">) {
                   {hectareasTexto(lead.hectareas) && <span className={styles.chip}>{hectareasTexto(lead.hectareas)}</span>}
                   {estado === "en_curso" && <span className={styles.chip}>{pasoTexto(lead)}</span>}
                   {lead.notas && <span className={styles.chip}>📝 Tiene notas</span>}
+                  {lead.crm_cliente_id && <span className={styles.chip}>🗂 CRM {lead.crm_cliente_id}</span>}
                 </div>
 
                 <div className={styles.sub}>

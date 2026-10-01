@@ -53,6 +53,14 @@ export default async function LeadPage(props: PageProps<"/asesores/[id]">) {
     ["Terminó el cuestionario", lead.completado_en ? fechaTexto(lead.completado_en) : estado === "en_curso" ? pasoTexto(lead) : "No"],
     ["Fichas enviadas", lead.fichas_enviadas_en ? fechaTexto(lead.fichas_enviadas_en) : "No"],
     ["Autorizó datos", lead.autoriza_datos_en ? fechaTexto(lead.autoriza_datos_en) : "No"],
+    [
+      "Cliente en el CRM",
+      lead.crm_cliente_id
+        ? `${lead.crm_cliente_id} · sincronizado ${fechaTexto(lead.crm_sincronizado_en)}`
+        : lead.crm_error
+          ? `No se pudo crear: ${lead.crm_error}`
+          : "Todavía no (falta que dé nombre o empresa)",
+    ],
   ];
 
   return (

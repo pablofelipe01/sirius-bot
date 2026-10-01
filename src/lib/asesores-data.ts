@@ -1,4 +1,5 @@
 import { ETAPAS, HECTAREAS, NOMBRE_PASO } from "@/config/flujo";
+import { configCrm, listoParaCrm, sincronizarLead } from "./crm";
 import { normalize } from "./municipios";
 import { getSupabaseAdmin, type Lead } from "./store";
 
@@ -109,6 +110,86 @@ export async function actualizarSeguimiento(
 ) {
   const { error } = await db().from("leads").update(cambios).eq("id", id);
   if (error) throw error;
+}
+
+/* --------------------- Sincronización con el CRM ------------------------- */
+
+export interface ResumenSincronizacion {
+  /** true si faltan las credenciales de Airtable: no se intentó nada. */
+  apagado: boolean;
+  creados: number;
+  vinculados: number;
+  actualizados: number;
+  /** Leads que todavía no dieron ni nombre ni empresa. */
+  sinDatos: number;
+  errores: number;
+}
+
+/**
+ * Pasa por todos los leads y los lleva al maestro de clientes. Es la carga
+ * inicial —los que ya existían antes de esta integración— y el reintento de
+ * los que fallaron: el bot ya sincroniza solo en cada mensaje nuevo.
+ *
+ * Va de a uno a propósito: Airtable corta en 5 peticiones por segundo y por
+ * base, y aquí no hay prisa.
+ */
+export async function sincronizarTodosConCrm(): Promise<ResumenSincronizacion> {
+  const resumen: ResumenSincronizacion = {
+    apagado: !configCrm(),
+    creados: 0,
+    vinculados: 0,
+    actualizados: 0,
+    sinDatos: 0,
+    errores: 0,
+  };
+  if (resumen.apagado) return resumen;
+
+  for (const lead of await todosLosLeads()) {
+    if (!listoParaCrm(lead)) {
+      resumen.sinDatos += 1;
+      continue;
+    }
+
+    const { resultado, patch } = await sincronizarLead(lead);
+    if (Object.keys(patch).length > 0) {
+      const { error } = await db().from("leads").update(patch).eq("id", lead.id);
+      if (error) console.error(`[crm] No se pudo guardar el enlace del lead ${lead.id}:`, error);
+    }
+
+    switch (resultado.estado) {
+      case "creado":
+        resumen.creados += 1;
+        break;
+      case "vinculado":
+        resumen.vinculados += 1;
+        break;
+      case "actualizado":
+        resumen.actualizados += 1;
+        break;
+      case "sin_datos":
+        resumen.sinDatos += 1;
+        break;
+      default:
+        resumen.errores += 1;
+    }
+  }
+
+  return resumen;
+}
+
+/** El resumen en una frase, para el aviso del panel. */
+export function resumenTexto(r: ResumenSincronizacion): string {
+  if (r.apagado) {
+    return "La conexión con el CRM no está configurada: faltan las variables de Airtable en el despliegue.";
+  }
+  const partes = [
+    r.creados ? `${r.creados} cliente(s) nuevo(s)` : null,
+    r.vinculados ? `${r.vinculados} enlazado(s) a un cliente que ya existía` : null,
+    r.actualizados ? `${r.actualizados} ya estaban al día` : null,
+    r.sinDatos ? `${r.sinDatos} sin datos todavía` : null,
+    r.errores ? `${r.errores} con error` : null,
+  ].filter(Boolean);
+  return partes.length ? `Sincronización con el CRM: ${partes.join(", ")}.` : "No había nada que sincronizar.";
 }
 
 // --- Textos para mostrar ---

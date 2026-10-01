@@ -35,6 +35,13 @@ export interface Lead {
   atendido_en: string | null;
   atendido_por: string | null;
   notas: string | null;
+  // Enlace con la ficha del cliente en Sirius Clients Core (Airtable). Lo
+  // escribe la sincronización; el flujo de WhatsApp no lo lee.
+  crm_cliente_record_id: string | null;
+  crm_cliente_id: string | null;
+  crm_contacto_record_id: string | null;
+  crm_sincronizado_en: string | null;
+  crm_error: string | null;
 }
 
 export type LeadPatch = Partial<Omit<Lead, "wa_id">>;
@@ -66,6 +73,11 @@ export function emptyLead(waId: string): Lead {
     atendido_en: null,
     atendido_por: null,
     notas: null,
+    crm_cliente_record_id: null,
+    crm_cliente_id: null,
+    crm_contacto_record_id: null,
+    crm_sincronizado_en: null,
+    crm_error: null,
   };
 }
 

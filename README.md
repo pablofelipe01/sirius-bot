@@ -21,6 +21,7 @@ Next.js (App Router) + WhatsApp Cloud API + Claude (`claude-opus-5`).
 | `src/lib/whatsapp.ts` | Firma, envío de mensajes y parseo del payload |
 | `src/lib/ai.ts` | Llamada a Claude (con caché del prompt y modelo de respaldo si hay rechazo) |
 | `src/lib/store.ts` | Historial: Supabase, o memoria si no hay credenciales |
+| `src/lib/crm.ts` + `src/lib/airtable.ts` | Creación de los leads como clientes en Sirius Clients Core |
 | `supabase/migrations/…_wa_mensajes.sql` | Tabla del historial |
 
 ## Flujo guiado (QR)
@@ -41,6 +42,24 @@ Lista de clientes captados por el bot, con pestañas *Por atender* (pidieron ase
 
 - Entrada con nombre + contraseña compartida (`ASESORES_PASSWORD`). Cambiar la contraseña cierra todas las sesiones.
 - "Marcar como atendido" guarda `atendido_en` y `atendido_por` en `leads`.
+- "Sincronizar con el CRM" lleva a Sirius Clients Core los leads que falten (ver abajo).
+
+## Clientes en el CRM (Sirius Clients Core)
+
+Cada lead que diga quién es se crea como cliente en la base de Airtable **Sirius Clients Core**, que es el maestro que lee [sirius-crm](../sirius_crm). El bot escribe directo en Airtable: no llama al CRM ni depende de que esté arriba, y el CRM no sabe que esto existe — sigue leyendo su maestro como siempre.
+
+- **Cuándo.** En cuanto la persona da nombre o empresa. Los números que escanean el QR y no contestan no llegan al CRM: una ficha sin nombre no se puede trabajar y allá un cliente no se borra, solo se inactiva.
+- **Qué se crea.** La ficha del cliente (*Cliente* = la empresa o finca, y si no la dio, la persona; *Ciudad*, *Departamento*, *Sector o cultivo*, *Segmento* con las hectáreas, *Etapa comercial* = Prospecto, *Como Conocio Sirius* = Feria o evento / WhatsApp, y un resumen de la conversación en *Observaciones*) y la persona de contacto en *Personal Cliente*, con su teléfono y correo.
+- **Sin duplicados.** Si ya existe un cliente con ese nombre —lo creó un asesor, o el mismo lead en otra conversación— el lead se cuelga de esa ficha.
+- **Sin pisar a nadie.** Al volver a sincronizar solo se llenan las celdas que siguen vacías. Lo que un asesor escriba en el CRM manda, y el nombre del cliente no se cambia nunca.
+- **Si Airtable falla** se guarda el error en `leads.crm_error`, se ve en el detalle del lead y se reintenta en el siguiente mensaje o con el botón del panel.
+- **Eliminación de datos.** Si el titular pide que borremos sus datos, además de borrar el lead se inactiva su ficha en el CRM y se le quitan teléfono y correo. No se borra: las visitas y los pedidos la referencian por serial.
+
+El enlace queda en `leads` (`crm_cliente_id`, `crm_cliente_record_id`, `crm_contacto_record_id`, `crm_sincronizado_en`, `crm_error`) y sale en el CSV del panel.
+
+**Carga inicial.** El botón *Sincronizar con el CRM* en `/asesores` recorre todos los leads y crea los que falten. Es también el reintento de los que quedaron con error.
+
+Si falta alguna de `AIRTABLE_API_KEY`, `AIRTABLE_BASE_CLIENTES`, `AIRTABLE_TABLE_CLIENTES` o `AIRTABLE_TABLE_PERSONAL_CLIENTE`, la integración queda apagada y el bot funciona igual que antes.
 
 ## Configuración
 

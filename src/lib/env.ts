@@ -21,6 +21,14 @@ export const env = {
   emailFrom: () => process.env.EMAIL_FROM,
   /** Contraseña compartida del panel de asesores (/asesores). Si falta, el panel no deja entrar. */
   asesoresPassword: () => process.env.ASESORES_PASSWORD,
+  // Sirius Clients Core (Airtable): el maestro de clientes que lee el CRM.
+  // Si falta cualquiera de estas, el bot no escribe en el CRM y sigue igual.
+  airtableApiKey: () => process.env.AIRTABLE_API_KEY,
+  crmBaseClientes: () => process.env.AIRTABLE_BASE_CLIENTES,
+  crmTablaClientes: () => process.env.AIRTABLE_TABLE_CLIENTES,
+  crmTablaPersonalCliente: () => process.env.AIRTABLE_TABLE_PERSONAL_CLIENTE,
+  /** ID Empleado con el que el bot firma lo que crea en el CRM ("SIRIUS-PER-XXXX"). */
+  crmAutorId: () => process.env.CRM_AUTOR_ID,
 };
 
 function siteUrl(): string {
