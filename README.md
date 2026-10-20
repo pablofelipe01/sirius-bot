@@ -2,6 +2,8 @@
 
 Next.js (App Router) + WhatsApp Cloud API + Claude (`claude-opus-5`).
 
+**Producción:** https://sirius-bot-two.vercel.app (Vercel). El QR permanente apunta a https://sirius-bot-two.vercel.app/qr: si este dominio cambia, el QR impreso deja de funcionar.
+
 ## Cómo funciona
 
 1. Meta envía cada mensaje a `POST /api/whatsapp`.
@@ -15,7 +17,9 @@ Next.js (App Router) + WhatsApp Cloud API + Claude (`claude-opus-5`).
 | `src/lib/municipios.ts` + `src/data/municipios.ts` | Validación del municipio contra el listado del DANE |
 | `src/lib/email.ts` | Envío opcional de las fichas por correo (Resend) |
 | `src/app/privacidad/page.tsx` | Política de tratamiento de datos (Ley 1581) — borrador, revisar |
-| `docs/qr-conferencia-palma-2026.png` | QR de la Conferencia de Palma 2026 |
+| `src/app/qr/route.ts` | Destino del QR permanente: redirige a WhatsApp con el mensaje de `QR` en `src/config/flujo.ts` |
+| `docs/qr-permanente.png` | QR permanente (→ https://sirius-bot-two.vercel.app/qr). Es el que se imprime. |
+| `docs/qr-conferencia-palma-2026.png` | QR de la Conferencia de Palma 2026 (evento pasado; sigue funcionando) |
 | `src/config/bot.ts` | **Personalidad, info del negocio y preguntas frecuentes. Edita esto primero.** |
 | `src/app/api/whatsapp/route.ts` | Webhook (verificación GET + mensajes POST) |
 | `src/lib/whatsapp.ts` | Firma, envío de mensajes y parseo del payload |
@@ -34,7 +38,7 @@ Cada respuesta se guarda en la tabla `leads` (una fila por número). Cuando term
 - **Eliminar datos:** si el cliente escribe "borrar mis datos", se borran su lead y su historial. Útil también para volver a probar el flujo desde cero.
 - **Volver a escanear el QR** reinicia el flujo desde el saludo.
 
-Link del QR (Expoagrofuturo 2026): `https://wa.me/573224183251?text=Hola%2C%20vengo%20de%20la%20Expoagrofuturo%202026%20y%20quiero%20informaci%C3%B3n%20sobre%20biochar%20y%20biol%C3%B3gicos.`
+**QR permanente.** El QR apunta a `/qr` de este sitio, que redirige a WhatsApp con el mensaje de `QR` (`src/config/flujo.ts`). Para un evento nuevo no se imprime otro QR: se cambia `QR.mensaje`, se agrega su frase a `ORIGENES` y se despliega. El mensaje debe contener la frase de `ORIGENES` para que el lead quede con su origen.
 
 ## Panel de asesores (`/asesores`)
 

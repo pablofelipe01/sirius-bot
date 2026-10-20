@@ -12,9 +12,14 @@ export const ORIGENES = [
   { frase: "conferencia de palma 2026", origen: "conferencia_palma_2026", nombre: "Conferencia de Palma 2026" },
 ];
 
-/** Mensaje prescrito del QR de la Expoagrofuturo 2026. */
-export const MENSAJE_QR_EXPOAGROFUTURO_2026 =
-  "Hola, vengo de la Expoagrofuturo 2026 y quiero información sobre biochar y biológicos.";
+/**
+ * QR permanente: apunta a /qr de este sitio, que redirige a WhatsApp con este mensaje.
+ * Para un evento nuevo, cambia el mensaje aquí y agrega su frase a ORIGENES; el QR impreso sigue igual.
+ */
+export const QR = {
+  whatsapp: "573224183251", // número del bot, sin + ni espacios
+  mensaje: "Hola, vengo de la Expoagrofuturo 2026 y quiero información sobre biochar y biológicos.",
+};
 
 export const TEXTOS = {
   saludo:
