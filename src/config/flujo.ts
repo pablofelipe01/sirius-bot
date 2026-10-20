@@ -18,7 +18,7 @@ export const ORIGENES = [
  */
 export const QR = {
   whatsapp: "573224183251", // número del bot, sin + ni espacios
-  mensaje: "Hola, vengo de la Expoagrofuturo 2026 y quiero información sobre biochar y biológicos.",
+  mensaje: "Hola, vengo de Expoagrofuturo 2026 y quiero información sobre biochar y biológicos",
 };
 
 export const TEXTOS = {
