@@ -22,6 +22,7 @@ export interface Lead {
   correo: string | null;
   correo_sin_validar: string | null;
   autoriza_datos_en: string | null;
+  cultivo: string | null;
   etapa: string | null;
   hectareas: string | null;
   municipio: string | null;
@@ -60,6 +61,7 @@ export function emptyLead(waId: string): Lead {
     correo: null,
     correo_sin_validar: null,
     autoriza_datos_en: null,
+    cultivo: null,
     etapa: null,
     hectareas: null,
     municipio: null,

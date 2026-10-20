@@ -4,7 +4,7 @@ import { emptyLead, type Lead, type LeadPatch } from "./store";
 import type { Button, ListRow } from "./whatsapp";
 
 // Flujo guiado para leads que llegan por QR:
-// inicio → nombre → empresa → correo (→ correo_reintento) → etapa → hectareas → municipio (→ departamento) → fichas → completo.
+// inicio → nombre → empresa → correo (→ correo_reintento) → cultivo → etapa → hectareas → municipio (→ departamento) → fichas → completo.
 // Si alguien responde algo inesperado dos veces seguidas, pasa a "asesor". En "completo" y "asesor" responde la IA.
 
 export type Entrada =
@@ -42,6 +42,7 @@ type Paso =
   | "empresa"
   | "correo"
   | "correo_reintento"
+  | "cultivo"
   | "etapa"
   | "hectareas"
   | "municipio"
@@ -166,15 +167,19 @@ export async function procesarFlujo(actual: Lead | null, waId: string, entrada: 
     case "correo_reintento": {
       const autoriza = { autoriza_datos_en: lead.autoriza_datos_en ?? deps.now() };
       if (esOpcion(entrada, ID.sinCorreo) || RE.sinCorreo.test(n)) {
-        return siguiente({ ...autoriza, correo: null }, "etapa");
+        return siguiente({ ...autoriza, correo: null }, "cultivo");
       }
       if (entrada.tipo !== "texto") return inesperada();
       const correo = texto.match(RE.correo)?.[0].toLowerCase();
-      if (correo) return siguiente({ ...autoriza, correo, correo_sin_validar: null }, "etapa");
+      if (correo) return siguiente({ ...autoriza, correo, correo_sin_validar: null }, "cultivo");
       if (paso === "correo") return siguiente({}, "correo_reintento");
       // Segundo intento fallido: se guarda lo que escribió y se sigue; no vale la pena perder el lead.
-      return siguiente({ ...autoriza, correo_sin_validar: texto }, "etapa");
+      return siguiente({ ...autoriza, correo_sin_validar: texto }, "cultivo");
     }
+
+    case "cultivo":
+      if (texto && texto.length <= 150) return siguiente({ cultivo: texto }, "etapa");
+      return inesperada();
 
     case "etapa": {
       const etapa = elegirEtapa(entrada, n);
@@ -259,6 +264,8 @@ async function preguntar(paso: Paso, lead: Lead, deps: FlowDeps, prefijo = ""): 
       return canal.buttons(conPrefijo(TEXTOS.correo), [{ id: ID.sinCorreo, title: TEXTOS.btnSinCorreo }]);
     case "correo_reintento":
       return canal.buttons(conPrefijo(TEXTOS.correoIncompleto), [{ id: ID.sinCorreo, title: TEXTOS.btnSinCorreo }]);
+    case "cultivo":
+      return canal.text(conPrefijo(TEXTOS.cultivo));
     case "etapa":
       return canal.list(conPrefijo(TEXTOS.etapa), TEXTOS.etapaBotonLista, [...ETAPAS]);
     case "hectareas":

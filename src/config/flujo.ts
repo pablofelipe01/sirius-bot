@@ -3,14 +3,18 @@
 // - Título de botón: máx. 20 caracteres (máx. 3 botones por mensaje).
 // - Título de opción de lista: máx. 24 caracteres.
 
-/** Frases del mensaje prescrito de cada QR. Si el mensaje del cliente la contiene, se guarda el origen. */
+/**
+ * Frases del mensaje prescrito de cada QR. Si el mensaje del cliente la contiene, se guarda el origen.
+ * Los QR de eventos pasados se dejan: sus leads siguen mostrando el nombre del evento en el panel.
+ */
 export const ORIGENES = [
-  { frase: "conferencia de palma 2026", origen: "conferencia_palma_2026" },
+  { frase: "expoagrofuturo 2026", origen: "expoagrofuturo_2026", nombre: "Expoagrofuturo 2026" },
+  { frase: "conferencia de palma 2026", origen: "conferencia_palma_2026", nombre: "Conferencia de Palma 2026" },
 ];
 
-/** Mensaje prescrito del QR de la Conferencia de Palma 2026. */
-export const MENSAJE_QR_PALMA_2026 =
-  "Hola, vengo de la Conferencia de Palma 2026 y quiero información sobre biochar y biológicos.";
+/** Mensaje prescrito del QR de la Expoagrofuturo 2026. */
+export const MENSAJE_QR_EXPOAGROFUTURO_2026 =
+  "Hola, vengo de la Expoagrofuturo 2026 y quiero información sobre biochar y biológicos.";
 
 export const TEXTOS = {
   saludo:
@@ -28,6 +32,8 @@ export const TEXTOS = {
   correo: "¿A qué correo te enviamos la información técnica?",
   correoIncompleto: "Creo que el correo quedó incompleto, ¿me lo confirmas?",
   btnSinCorreo: "Prefiero no darlo",
+
+  cultivo: "¿Qué cultivo tienes?",
 
   etapa: "¿Sobre cuál etapa quieres información?",
   etapaBotonLista: "Ver etapas",
@@ -93,6 +99,7 @@ export const NOMBRE_PASO: Record<string, string> = {
   empresa: "la empresa o finca",
   correo: "el correo",
   correo_reintento: "el correo",
+  cultivo: "el cultivo",
   etapa: "la etapa del cultivo",
   hectareas: "las hectáreas",
   municipio: "el municipio",

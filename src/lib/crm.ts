@@ -1,4 +1,4 @@
-import { ETAPAS, HECTAREAS } from "@/config/flujo";
+import { ETAPAS, HECTAREAS, ORIGENES } from "@/config/flujo";
 import {
   actualizarRegistro,
   crearRegistro,
@@ -54,7 +54,7 @@ const CONTACTO = {
   modificadoPor: "Modificado Por ID",
 } as const;
 
-/** Cultivo que se asume según el QR por el que llegó la persona. */
+/** Cultivo que se asume según el QR por el que llegó la persona. Si el QR no lo dice, se usa el que respondió. */
 const SECTOR_POR_ORIGEN: Record<string, string> = {
   conferencia_palma_2026: "Palma",
 };
@@ -144,11 +144,13 @@ function normalizarNombre(valor: string): string {
 function observacionesDe(lead: Lead): string {
   const etapa = ETAPAS.find((e) => e.id === lead.etapa)?.title;
   const hectareas = HECTAREAS.find((h) => h.id === lead.hectareas)?.title;
+  const evento = ORIGENES.find((o) => o.origen === lead.origen)?.nombre;
 
   return [
     "Lead capturado por el bot de WhatsApp de Sirius.",
-    lead.origen === "conferencia_palma_2026" ? "Origen: Conferencia de Palma 2026." : "Origen: escribió por WhatsApp.",
+    evento ? `Origen: ${evento}.` : "Origen: escribió por WhatsApp.",
     lead.nombre ? `Habló con: ${lead.nombre}.` : null,
+    lead.cultivo ? `Cultivo: ${lead.cultivo}.` : null,
     etapa ? `Le interesa: ${etapa}.` : null,
     hectareas ? `Área que maneja: ${hectareas}.` : null,
     lead.municipio && lead.municipio_encontrado === false
@@ -170,7 +172,7 @@ function camposCliente(lead: Lead, nombre: string, autorId: string): Record<stri
     [CLIENTE.nombre]: nombre,
     [CLIENTE.ciudad]: limpio(lead.municipio) ?? "",
     [CLIENTE.departamento]: limpio(lead.departamento) ?? "",
-    [CLIENTE.sector]: (lead.origen && SECTOR_POR_ORIGEN[lead.origen]) || "",
+    [CLIENTE.sector]: (lead.origen && SECTOR_POR_ORIGEN[lead.origen]) || limpio(lead.cultivo) || "",
     [CLIENTE.segmento]: HECTAREAS.find((h) => h.id === lead.hectareas)?.title ?? "",
     [CLIENTE.etapa]: "Prospecto",
     [CLIENTE.observaciones]: observacionesDe(lead),

@@ -27,14 +27,14 @@ Next.js (App Router) + WhatsApp Cloud API + Claude (`claude-opus-5`).
 ## Flujo guiado (QR)
 
 El QR abre WhatsApp con un mensaje prescrito; si el mensaje contiene la frase de `ORIGENES` (`src/config/flujo.ts`) se guarda el origen del lead.
-Pasos: saludo → nombre → empresa → aviso de Habeas Data + correo → etapa → hectáreas → municipio (→ departamento) → fichas → cierre.
+Pasos: saludo → nombre → empresa → aviso de Habeas Data + correo → cultivo → etapa → hectáreas → municipio (→ departamento) → fichas → cierre.
 Cada respuesta se guarda en la tabla `leads` (una fila por número). Cuando termina, los mensajes libres los responde la IA.
 
 - **Salida a asesor:** dos respuestas inesperadas seguidas, o si pide un asesor → `requiere_asesor = true` en `leads` y aviso por WhatsApp al asesor.
 - **Eliminar datos:** si el cliente escribe "borrar mis datos", se borran su lead y su historial. Útil también para volver a probar el flujo desde cero.
 - **Volver a escanear el QR** reinicia el flujo desde el saludo.
 
-Link del QR: `https://wa.me/573224183251?text=Hola%2C%20vengo%20de%20la%20Conferencia%20de%20Palma%202026%20y%20quiero%20informaci%C3%B3n%20sobre%20biochar%20y%20biol%C3%B3gicos.`
+Link del QR (Expoagrofuturo 2026): `https://wa.me/573224183251?text=Hola%2C%20vengo%20de%20la%20Expoagrofuturo%202026%20y%20quiero%20informaci%C3%B3n%20sobre%20biochar%20y%20biol%C3%B3gicos.`
 
 ## Panel de asesores (`/asesores`)
 

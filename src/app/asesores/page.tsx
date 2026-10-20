@@ -102,7 +102,8 @@ export default async function AsesoresPage(props: PageProps<"/asesores">) {
 
                 <div className={styles.datosCortos}>
                   {ubicacion && <span className={styles.chip}>📍 {ubicacion}</span>}
-                  {etapaTexto(lead.etapa) && <span className={styles.chip}>🌱 {etapaTexto(lead.etapa)}</span>}
+                  {lead.cultivo && <span className={styles.chip}>🌾 {lead.cultivo}</span>}
+                  {etapaTexto(lead.etapa) &&<span className={styles.chip}>🌱 {etapaTexto(lead.etapa)}</span>}
                   {hectareasTexto(lead.hectareas) && <span className={styles.chip}>{hectareasTexto(lead.hectareas)}</span>}
                   {estado === "en_curso" && <span className={styles.chip}>{pasoTexto(lead)}</span>}
                   {lead.notas && <span className={styles.chip}>📝 Tiene notas</span>}

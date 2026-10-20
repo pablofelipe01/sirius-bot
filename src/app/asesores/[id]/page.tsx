@@ -45,6 +45,7 @@ export default async function LeadPage(props: PageProps<"/asesores/[id]">) {
         `${lead.correo_sin_validar} (incompleto)`
       ) : null,
     ],
+    ["Cultivo", lead.cultivo],
     ["Etapa", etapaTexto(lead.etapa)],
     ["Hectáreas", hectareasTexto(lead.hectareas)],
     ["Ubicación", ubicacion ? `${ubicacion}${lead.municipio_encontrado === false ? " (no está en el listado DANE)" : ""}` : null],

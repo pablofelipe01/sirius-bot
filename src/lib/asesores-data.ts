@@ -1,4 +1,4 @@
-import { ETAPAS, HECTAREAS, NOMBRE_PASO } from "@/config/flujo";
+import { ETAPAS, HECTAREAS, NOMBRE_PASO, ORIGENES } from "@/config/flujo";
 import { configCrm, listoParaCrm, sincronizarLead } from "./crm";
 import { normalize } from "./municipios";
 import { getSupabaseAdmin, type Lead } from "./store";
@@ -207,8 +207,7 @@ export function pasoTexto(lead: Lead): string {
 }
 
 export function origenTexto(origen: string | null): string {
-  if (origen === "conferencia_palma_2026") return "Conferencia de Palma 2026";
-  return origen ?? "Escribió directo";
+  return ORIGENES.find((o) => o.origen === origen)?.nombre ?? origen ?? "Escribió directo";
 }
 
 export function nombreDe(lead: Lead): string {
