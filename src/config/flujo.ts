@@ -23,7 +23,7 @@ export const ORIGENES = [
  */
 export const QR = {
   whatsapp: "573224183251", // número del bot, sin + ni espacios
-  mensaje: "Hola, vengo de la IV Feria ganadera shopping de genética y quiero información sobre biochar y biológicos",
+  mensaje: "Hola, vengo de la IV Feria Ganadera Shopping de Genética y quiero información sobre biochar y biológicos",
 };
 
 export const TEXTOS = {
