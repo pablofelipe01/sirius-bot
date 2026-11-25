@@ -8,6 +8,11 @@
  * Los QR de eventos pasados se dejan: sus leads siguen mostrando el nombre del evento en el panel.
  */
 export const ORIGENES = [
+  {
+    frase: "iv feria ganadera shopping de genetica",
+    origen: "feria_ganadera_shopping_genetica_iv",
+    nombre: "IV Feria Ganadera Shopping de Genética",
+  },
   { frase: "expoagrofuturo 2026", origen: "expoagrofuturo_2026", nombre: "Expoagrofuturo 2026" },
   { frase: "conferencia de palma 2026", origen: "conferencia_palma_2026", nombre: "Conferencia de Palma 2026" },
 ];
@@ -18,7 +23,7 @@ export const ORIGENES = [
  */
 export const QR = {
   whatsapp: "573224183251", // número del bot, sin + ni espacios
-  mensaje: "Hola, vengo de Expoagrofuturo 2026 y quiero información sobre biochar y biológicos",
+  mensaje: "Hola, vengo de la IV Feria ganadera shopping de genética y quiero información sobre biochar y biológicos",
 };
 
 export const TEXTOS = {
